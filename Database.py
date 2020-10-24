@@ -57,8 +57,9 @@ class Datastore:
         self.tables: Dict[Table] = dict()
     def add_source_table(self, table_name):
         self.tables[table_name] = Table(table_name, TableType.SOURCE, DerivedSettings(list(), list()))
-    def add_derived_table(self, table_name, derivedSettings: DerivedSettings):
-        for inTable in derivedSettings.inputs:
+    def add_derived_table(self, table_name, transform):
+        derivedSettings = DerivedSettings(transform.get_source_tables(), list(), transform)
+        for inTable in transform.get_source_tables():
             self.get_table(inTable).add_output_table(table_name)
         self.tables[table_name] = Table(table_name, TableType.DERIVED, derivedSettings)
     

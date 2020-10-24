@@ -1,0 +1,3 @@
+{"method":"put", "table":"users", "key":"jimmy", "value":{"age": 21, "height": 65, "weight": 190}}~
+{"method":"put", "table":"users", "key":"bobby", "value":{"age": 23, "height": 70, "weight": 230}}~
+{"method":"getAll", "table":"filterTest"}~
