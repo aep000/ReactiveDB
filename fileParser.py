@@ -1,3 +1,4 @@
+# Parse Schema Files and Generate A Datastore
 import yaml
 import re
 from transforms import ComparisonExpression, FunctionExpression, Filter, Function, Union, ComparisonOperators, ExpressionValue, ValueTypes, FunctionOperators
