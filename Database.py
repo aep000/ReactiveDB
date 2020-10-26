@@ -1,4 +1,5 @@
 from enum import Enum
+from table import PersistentTable
 from typing import Dict, Any
 
 class TableType(Enum):
@@ -54,14 +55,14 @@ class Table:
 
 class Datastore:
     def __init__(self):
-        self.tables: Dict[Table] = dict()
+        self.tables: Dict[PersistentTable] = dict()
     def add_source_table(self, table_name):
-        self.tables[table_name] = Table(table_name, TableType.SOURCE, DerivedSettings(list(), list()))
+        self.tables[table_name] = PersistentTable(table_name, TableType.SOURCE, DerivedSettings(list(), list()))
     def add_derived_table(self, table_name, transform):
         derivedSettings = DerivedSettings(transform.get_source_tables(), list(), transform)
         for inTable in transform.get_source_tables():
             self.get_table(inTable).add_output_table(table_name)
-        self.tables[table_name] = Table(table_name, TableType.DERIVED, derivedSettings)
+        self.tables[table_name] = PersistentTable(table_name, TableType.DERIVED, derivedSettings)
     
     def add_data(self, table_name, key, value):
         transaction = Transaction(key, value, table_name, TransactionMethod.ADD)
@@ -78,7 +79,7 @@ class Datastore:
             derivation_settings.transform.run(self, transaction)
         return self.get_table(table_name).remove_data(key)
 
-    def get_table(self, table_name) -> Table:
+    def get_table(self, table_name) -> PersistentTable:
         return self.tables[table_name]
 
 #Future stuff

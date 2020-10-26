@@ -1,3 +1,4 @@
+import os
 from storageManager import StorageManager
 import bson
 import random
@@ -41,15 +42,36 @@ class _Node:
         else:
             return -1
     
-    def get_entries(self, index):
+    def get_entries_exact(self, index):
         outputs = []
         pos = 0
         while pos< len(self.values) and self.values[pos] <= index:
             if(self.values[pos] == index):
                 outputs.append(self.values[pos])
             pos+=1
+        return (outputs, pos == len(self.values))
 
-        return outputs
+    def get_entries_gt(self, index, equals= False):
+        outputs = []
+        pos = 0
+        while pos< len(self.values):
+            if(self.values[pos] == index and equals):
+                outputs.append(self.values[pos])
+            if(self.values[pos] > index ):
+                outputs.append(self.values[pos])
+            pos+=1
+        return (outputs, pos == len(self.values))
+    
+    def get_entries_lt(self, index, equals= False):
+        outputs = []
+        pos = 0
+        while pos< len(self.values) and self.values[pos] <= index:
+            if(self.values[pos] == index and equals):
+                outputs.append(self.values[pos])
+            if(self.values[pos] < index ):
+                outputs.append(self.values[pos])
+            pos+=1
+        return (outputs, pos == len(self.values))
     
     def is_full(self):
         return len(self.values) >= self.size - 1
@@ -194,6 +216,9 @@ class BPlusTree:
         self.node_size = node_size
         self.file_name = file_name
         self.storage_manager = StorageManager(file_name)
+        if(os.path.getsize(file_name) == 0):
+            root_node = _Node(20, True)
+            self.storage_manager.write_data(root_node.serialize(), 1)
     
     def insert(self, entry):
         def insert_entry(node_ref: int, entry: Entry):
@@ -274,7 +299,28 @@ class BPlusTree:
         def search_helper(node_ref: int, entry):
             node = get_node_from_storage(node_ref, self.storage_manager)
             if(node.is_leaf()):
-                return node.get_entries(entry)
+                entries = node.get_entries_exact(entry)
+                if(entries[1]):
+                    entries[0].extend(search_helper(node.next, entry))
+                return entries[0]
+            else:
+                next_index = node_value_binary_search(node.values, entry)
+                print(next_index)
+                next_node_down = node.values[next_index].left
+                if(entry >= node.values[next_index]):
+                    next_node_down = node.values[next_index].right
+                return search_helper(next_node_down, entry)
+            
+        return search_helper(1, Entry(index, "nothing"))
+
+    def gt_search(self, index, equals=False):
+        def search_helper(node_ref: int, entry):
+            node = get_node_from_storage(node_ref, self.storage_manager)
+            if(node.is_leaf()):
+                entries = node.get_entries_gt(entry, equals)
+                if(entries[1] and node.next != -1):
+                    entries[0].extend(search_helper(node.next, entry))
+                return entries[0]
             else:
                 next_index = node_value_binary_search(node.values, entry)
                 next_node_down = node.values[next_index].left
@@ -283,14 +329,45 @@ class BPlusTree:
                 return search_helper(next_node_down, entry)
             
         return search_helper(1, Entry(index, "nothing"))
+    
+    def lt_search(self, index, equals=False):
+        def search_helper(node_ref: int, entry):
+            node = get_node_from_storage(node_ref, self.storage_manager)
+            if(node.is_leaf()):
+                entries = node.get_entries_lt(entry, equals)
+                if(entries[1] and node.next != -1):
+                    entries[0].extend(search_helper(node.next, entry))
+                return entries[0]
+            else:
+                next_node_down = node.values[0].left
+                return search_helper(next_node_down, entry)
+            
+        return search_helper(1, Entry(index, "nothing"))
+    
+    def get_all(self):
+        output = list()
+        node = get_node_from_storage(1, self.storage_manager)
+        while(not node.is_leaf()):
+            node = get_node_from_storage(node.values[0].left, self.storage_manager)
+        
+        while True:
+            output.extend(node.values)
+            next_ref = node.next
+            if(next_ref == -1):
+                break
+            node = get_node_from_storage(next_ref, self.storage_manager)
+        return output
 
     def __str__(self) -> str:
         return "{}".format(get_node_from_storage(1, self.storage_manager))
 
 
 
+storage_manager = StorageManager("testIndex.txt")
+bPTree = BPlusTree(5, "testIndex.txt")
+'''
 entries = []
-indexes = [*range(20)]
+indexes = [*range(20000)]
 random.shuffle(indexes)
 for n in indexes:
     entries.append(Entry(n, "test "+str(n)))
@@ -301,12 +378,11 @@ storage_manager = StorageManager("another_test.txt")
 l = storage_manager.write_data(node.serialize())
 #print(get_node_from_storage(l, storage_manager))
 
-storage_manager = StorageManager("testIndex.txt")
-bPTree = BPlusTree(5, "testIndex.txt")
-'''for entry in entries:
-    print(bPTree)
-    print ("=========================================")
+
+for entry in entries:
+    #print(bPTree)
+    #print ("=========================================")
     bPTree.insert(entry)'''
 
-print(bPTree)
-print(bPTree.exact_search(5)[0].value)
+#print(bPTree)
+print([x.index for x in bPTree.exact_search(42)])
