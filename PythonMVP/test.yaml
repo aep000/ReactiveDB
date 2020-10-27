@@ -1,0 +1,26 @@
+users:
+  type: source
+
+posts:
+  type: source
+
+userPostMatch:
+  type: derived
+  operation: union
+  input-tables:
+    - users
+    - posts
+
+filterTest:
+  type: derived
+  operation: filter
+  expression: age == 21
+  source-table: users
+
+functionTest:
+  type: derived
+  operation: function
+  source-table: users
+  expressions:
+    - score = age + 10
+    - bmi = weight / height
