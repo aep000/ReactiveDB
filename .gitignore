@@ -1,2 +1,4 @@
-db/*
-venv/*
+*db/*
+*venv/*
+*pycache*
+*target*
