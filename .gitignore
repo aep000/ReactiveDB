@@ -1,5 +1,6 @@
 PythonMVP/db/*
 PythonMVP/venv/*
+reactive_db/target/*
 *.pyc
 *.index
 *.db
