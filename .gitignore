@@ -1,5 +1,5 @@
-*db/*
-*venv/*
+PythonMVP/db/*
+PythonMVP/venv/*
 *.pyc
 *.index
 *.db
