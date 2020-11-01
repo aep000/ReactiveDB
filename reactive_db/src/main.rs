@@ -1,32 +1,50 @@
 mod storage_manager;
+mod btree;
+use crate::btree::node::Node;
+use serde_json::{Result};
 
+
+use std::io::Cursor;
+use std::time::Instant;
+use rand::distributions::Distribution;
+use rand::distributions::Uniform;
+use crate::btree::node::IndexValue;
 use crate::storage_manager::StorageManager;
 use std::io;
-use std::collections::BinaryHeap;
+use crate::btree::btree::BTree;
+use rand::{thread_rng, Rng};
 
 fn main() -> io::Result<()>{
-    let mut storage_manager: StorageManager = StorageManager {
-        file_name: "test.index".to_string(),
-        open_blocks: BinaryHeap::new(),
-        number_of_blocks: 0,
-        session_open: false,
-        open_file: None
-    };
-    storage_manager.start_write_session()?;
+    let storage_manager: StorageManager = StorageManager::new("/Users/alexparson/Projects/ReactiveDB/reactive_db/benchmark.index".to_string())?;
 
-    //storage_manager.write_block(1, "This is a test".as_bytes().to_vec())?;
-    //storage_manager.write_block(2, "This is a second test".as_bytes().to_vec())?;
-    storage_manager.write_data("This is a second test".as_bytes().to_vec(), None)?;
-    let first_block = storage_manager.read_data(1)?;
+    let mut tree = BTree::new(5, storage_manager)?;
+    
+    let between = Uniform::from(10..40000);
+    let mut rng = rand::thread_rng();
+    
+    let start = Instant::now();
+   /* 
+    for n in 0..20000 {
+        //println!("Inserting: {}", n);
+        tree.insert(IndexValue::Integer(between.sample(&mut rng)), n)?;
+    }
+    */
 
-    let first_block_str = String::from_utf8(first_block).expect("something went wrong");
-    println!("{}", first_block_str);
+    print!("\n\n FOUND RESULT:{:?}", tree.search_exact(IndexValue::Integer(15236)));
 
-    storage_manager.delete_data(1)?;
+    println!("Operation took {} seconds!", start.elapsed().as_secs());
 
-    storage_manager.close_session();
-    storage_manager.start_write_session()?;
-    storage_manager.write_data("this is a third test".as_bytes().to_vec(), None)?;
+    
+    /*tree.insert(IndexValue::String("Alex".to_string()), 101)?;
+    tree.insert(IndexValue::String("Sean".to_string()), 102)?;
+    tree.insert(IndexValue::String("John".to_string()), 103)?;
+    tree.insert(IndexValue::String("Dave".to_string()), 104)?;
+    tree.insert(IndexValue::String("Luke".to_string()), 105)?;
+    tree.insert(IndexValue::String("Jamie".to_string()), 106)?;*/
+
+
+
+
 
     return Ok(());
 }
