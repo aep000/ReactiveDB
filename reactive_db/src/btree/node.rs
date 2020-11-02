@@ -40,7 +40,7 @@ impl PartialOrd for Entry {
 #[derive(Clone, Ord, Eq, PartialOrd, PartialEq, Serialize, Deserialize)]
 pub enum IndexValue {
     Bool(bool),
-    Integer(i64),
+    Integer(isize),
     String(String),
     Array(Vec<IndexValue>),
 }

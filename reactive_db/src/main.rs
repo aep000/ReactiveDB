@@ -1,50 +1,54 @@
 mod storage_manager;
 mod btree;
-use crate::btree::node::Node;
-use serde_json::{Result};
+mod database;
 
 
-use std::io::Cursor;
+use std::collections::BTreeMap;
+use crate::database::{Table, TableType, Column, DataType, EntryValue};
 use std::time::Instant;
-use rand::distributions::Distribution;
 use rand::distributions::Uniform;
 use crate::btree::node::IndexValue;
 use crate::storage_manager::StorageManager;
 use std::io;
 use crate::btree::btree::BTree;
-use rand::{thread_rng, Rng};
 
 fn main() -> io::Result<()>{
-    let storage_manager: StorageManager = StorageManager::new("/Users/alexparson/Projects/ReactiveDB/reactive_db/benchmark.index".to_string())?;
+    let mut columns = vec![];
+    columns.push(Column::new("first_column".to_string(), DataType::Integer));
+    columns.push(Column::new("second_column".to_string(), DataType::Str));
 
-    let mut tree = BTree::new(5, storage_manager)?;
+    let mut test_table = Table::new("TestOne".to_string(), columns, TableType::Source)?;
+    let mut new_entry = EntryBuilder::new();
+    new_entry.column("first_column", EntryValue::Integer(12));
+    new_entry.column("second_column", EntryValue::Str("Test".to_string()));
     
-    let between = Uniform::from(10..40000);
-    let mut rng = rand::thread_rng();
-    
-    let start = Instant::now();
-   /* 
-    for n in 0..20000 {
-        //println!("Inserting: {}", n);
-        tree.insert(IndexValue::Integer(between.sample(&mut rng)), n)?;
-    }
-    */
-
-    print!("\n\n FOUND RESULT:{:?}", tree.search_exact(IndexValue::Integer(15236)));
-
-    println!("Operation took {} seconds!", start.elapsed().as_secs());
-
-    
-    /*tree.insert(IndexValue::String("Alex".to_string()), 101)?;
-    tree.insert(IndexValue::String("Sean".to_string()), 102)?;
-    tree.insert(IndexValue::String("John".to_string()), 103)?;
-    tree.insert(IndexValue::String("Dave".to_string()), 104)?;
-    tree.insert(IndexValue::String("Luke".to_string()), 105)?;
-    tree.insert(IndexValue::String("Jamie".to_string()), 106)?;*/
-
+    test_table.insert(new_entry.build())?;
+    println!("{:?}", test_table.exact_get("first_column".to_string(), EntryValue::Integer(12)));
+    println!("{:?}", test_table.exact_get("first_column".to_string(), EntryValue::Integer(13)));
+    println!("{:?}", test_table.exact_get("second_column".to_string(), EntryValue::Str("Test".to_string())));
+    println!("{:?}", test_table.exact_get("second_column".to_string(), EntryValue::Integer(12)));
 
 
 
 
     return Ok(());
+}
+#[derive(Clone)]
+struct EntryBuilder {
+    map: BTreeMap<String, EntryValue>
+}
+
+impl EntryBuilder {
+    pub fn new() -> EntryBuilder{
+        return EntryBuilder {
+            map: BTreeMap::new()
+        }
+    }
+    pub fn column(&mut self, key: &str, value: EntryValue) -> EntryBuilder{
+        self.map.insert(key.to_string(), value);
+        return self.clone();
+    }
+    pub fn build(&mut self) -> BTreeMap<String, EntryValue> {
+        self.map.clone()
+    }
 }

@@ -235,8 +235,6 @@ impl BTree {
     }
     fn search_helper(&mut self, index: &Entry, current_node_ref: u32) -> io::Result<Node>{
         let current_node_raw = self.storage_manager.read_data(current_node_ref)?;
-        //print!("\n\nSEARCHING NODE {:?}", current_node_ref);
-        //print_raw_stored_data(&current_node_raw);
         let current_node: Result<Node> = serde_json::from_reader(Cursor::new(current_node_raw));
         let current_node = match current_node{
             Ok(node) => node,
@@ -244,7 +242,6 @@ impl BTree {
                 panic!("Something went wrong {:?}", error);
             }
         };
-        println!("Node at {}: {:?}", current_node_ref, current_node);
         if current_node.leaf {
             return Ok(current_node);
         }

@@ -39,7 +39,7 @@ impl StorageManager{
             session_open: false,
             open_file: None
         };
-        manager.start_read_session()?;
+        manager.start_write_session()?;
         manager.update_open_blocks()?;
         manager.end_session();
 
@@ -54,7 +54,7 @@ impl StorageManager{
 
     pub fn start_write_session(&mut self) -> io::Result<()>{
         self.session_open = true;
-        self.open_file = Some(OpenOptions::new().read(true).write(true).open(&self.file_name)?);
+        self.open_file = Some(OpenOptions::new().read(true).write(true).create(true).open(&self.file_name)?);
         return Ok(());
     }
 
