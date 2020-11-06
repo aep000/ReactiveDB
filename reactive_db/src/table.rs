@@ -11,7 +11,7 @@ use serde_json::Result;
 
 const BTREE_NODE_SIZE: u32 = 20;
 
-#[derive(Clone, Ord, Eq, PartialOrd, PartialEq,)]
+#[derive(Clone, Ord, Eq, PartialOrd, PartialEq, Serialize, Deserialize, Debug)]
 pub enum DataType {
     Integer,
     Array(Box<DataType>),
@@ -164,6 +164,54 @@ impl Table {
             Ok(tree) => Ok(tree),
             Err(e) => Err(create_custom_io_error(format!("{:?}", e).as_str()))
         };
+    }
+
+    pub fn less_than(&mut self, search_column_name: String, value: EntryValue, equals: bool) -> io::Result<Vec<BTreeMap<String, EntryValue>>>{
+        let column = match self.columns.get(&search_column_name){
+            Some(c) => Ok(c),
+            None => Err(create_custom_io_error(format!("No such column {} exists", search_column_name).as_str()))
+        }?;
+        if !column.indexed {
+            return Err(create_custom_io_error(format!("No such column {} exists", search_column_name).as_str()));
+        }
+        let location_refs = self.indexes[column.index_loc].less_than(value.to_index_value()?, equals)?;
+        self.entry_storage_manager.start_read_session()?;
+        let mut output = vec![];
+        for location_ref in location_refs{
+            let raw_entry = self.entry_storage_manager.read_data(location_ref.right_ref)?;
+            let entry: Result<BTreeMap<String, EntryValue>>= serde_json::from_slice(raw_entry.as_slice());
+            let entry_unwrapped =  match entry {
+                Ok(tree) => Ok(tree),
+                Err(e) => Err(create_custom_io_error(format!("{:?}", e).as_str()))
+            }?;
+            output.push(entry_unwrapped);
+        }
+        self.entry_storage_manager.end_session();
+        return Ok(output)
+    }
+
+    pub fn greater_than(&mut self, search_column_name: String, value: EntryValue) -> io::Result<Vec<BTreeMap<String, EntryValue>>>{
+        let column = match self.columns.get(&search_column_name){
+            Some(c) => Ok(c),
+            None => Err(create_custom_io_error(format!("No such column {} exists", search_column_name).as_str()))
+        }?;
+        if !column.indexed {
+            return Err(create_custom_io_error(format!("No such column {} exists", search_column_name).as_str()));
+        }
+        let location_refs = self.indexes[column.index_loc].greater_than(value.to_index_value()?)?;
+        self.entry_storage_manager.start_read_session()?;
+        let mut output = vec![];
+        for location_ref in location_refs{
+            let raw_entry = self.entry_storage_manager.read_data(location_ref.right_ref)?;
+            let entry: Result<BTreeMap<String, EntryValue>>= serde_json::from_slice(raw_entry.as_slice());
+            let entry_unwrapped =  match entry {
+                Ok(tree) => Ok(tree),
+                Err(e) => Err(create_custom_io_error(format!("{:?}", e).as_str()))
+            }?;
+            output.push(entry_unwrapped);
+        }
+        self.entry_storage_manager.end_session();
+        return Ok(output)
     }
 }
 

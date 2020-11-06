@@ -32,7 +32,7 @@ class StorageManager:
         heapq.heappush(self.open_blocks, block_number)
         self._write_block(block_number, EMPTY_BLOCK, file_pointer)
 
-    def get_block(self):
+    def allocate_block(self):
         if(len(self.open_blocks)>0):
             return int(heapq.heappop(self.open_blocks))
         else:
@@ -42,7 +42,7 @@ class StorageManager:
     def write_data(self, data: bytes, block=-1):
         with open(self.file_name, "r+b") as f:
             if(block == -1):
-                block = self.get_block()
+                block = self.allocate_block()
             else:
                 if(block in self.open_blocks):
                     self.open_blocks.remove(block)
@@ -55,7 +55,7 @@ class StorageManager:
                 if(cursor>len(data)):
                     self._write_block(block, data_to_write+EMPTY_REFERENCE, f)
                 else:
-                    next_block = self.get_block()
+                    next_block = self.allocate_block()
                     self._write_block(block, data_to_write+next_block.to_bytes(REFERENCE_SIZE, "big"), f)
                     block = next_block
             return root_block

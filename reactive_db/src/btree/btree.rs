@@ -69,16 +69,88 @@ impl BTree {
         self.storage_manager.end_session();
         return Ok(());
     }
-    fn insert_helper(&mut self, current_node_ref:u32, entry: Entry) -> io::Result<InsertResult>{
-        //println!("Looking to insert in {}", current_node_ref);
-        let current_node_raw = self.storage_manager.read_data(current_node_ref)?;
-        let current_node: Result<Node> = serde_json::from_reader(Cursor::new(current_node_raw));
-        let mut current_node =  match current_node {
-            Ok (value) => value,
-            error =>{
-                panic!("Error decoding node {:?}", error)
-            }
+
+    // Searches for exact values and never 
+    pub fn search_exact(&mut self, index: IndexValue) ->  io::Result<Entry>{
+        self.storage_manager.start_read_session()?;
+        let dummy_entry = Entry {
+            index: index,
+            right_ref: 0,
+            left_ref: None
         };
+        let found_node = self.search_helper(&dummy_entry, 1)?;
+        self.storage_manager.end_session();
+        return match found_node.entries.binary_search(&dummy_entry){
+            Ok(pos) => Ok(found_node.entries[pos].clone()),
+            Err(_) => Err(Error::new(ErrorKind::Other, "Unable to find result"))
+        };
+    }
+
+    pub fn greater_than(&mut self, index: IndexValue) -> io::Result<Vec<Entry>> {
+        self.storage_manager.start_read_session()?;
+        let dummy_entry = Entry {
+            index: index,
+            right_ref: 0,
+            left_ref: None
+        };
+        let found_node = self.search_helper(&dummy_entry, 1)?;
+        self.storage_manager.end_session();
+        let start_pos = match found_node.entries.binary_search(&dummy_entry){
+            Ok(pos) => pos,
+            Err(pos) => pos
+        };
+        let mut output = vec![];
+        output.extend(found_node.entries[start_pos..].to_vec());
+        let mut next_node = found_node.next_node;
+        while next_node != 0 {
+            let current_node = self.get_node(next_node)?;
+            output.extend(current_node.entries);
+            next_node = current_node.next_node;
+        } 
+
+        return Ok(output);
+    }
+
+    pub fn less_than(&mut self, index: IndexValue, equals: bool) -> io::Result<Vec<Entry>> {
+        let dummy_entry = Entry {
+            index: index,
+            right_ref: 0,
+            left_ref: None
+        };
+        self.storage_manager.start_read_session()?;
+        let mut output = vec![];
+        let mut current_node = self.get_node(1)?;
+        while !current_node.leaf {
+            current_node = self.get_node(current_node.entries[0].left_ref.unwrap())?;
+        }
+        let mut pos = current_node.entries.len(); 
+        while pos == current_node.entries.len() {
+            pos = match current_node.entries.binary_search(&dummy_entry){
+                Ok(pos) => pos,
+                Err(pos) => pos
+            };
+            if pos < current_node.entries.len() {
+                if equals{
+                    output.extend(current_node.entries[..=pos].to_vec());
+                }
+                else{
+                    output.extend(current_node.entries[..pos].to_vec());
+                }
+            }
+            else{
+                output.extend(current_node.entries);
+            }
+            if current_node.next_node == 0 {
+                break;
+            }
+            current_node = self.get_node(current_node.next_node)?;
+        }
+
+        return Ok(output);
+    }
+
+    fn insert_helper(&mut self, current_node_ref:u32, entry: Entry) -> io::Result<InsertResult>{
+        let mut current_node = self.get_node(current_node_ref)?;
         //Is this a leaf node?
         if current_node.leaf {
             //Are there too many entries?
@@ -136,7 +208,7 @@ impl BTree {
             }
         }
         else{
-            let mut dest_pos :isize = match current_node.entries.binary_search(&entry) {
+            let dest_pos :isize = match current_node.entries.binary_search(&entry) {
                 Ok(pos) => pos as isize,
                 Err(pos) => pos as isize - 1
             };
@@ -216,32 +288,8 @@ impl BTree {
         }
     }
 
-
-
-    // Searches for exact values and never 
-    pub fn search_exact(&mut self, index: IndexValue) ->  io::Result<Entry>{
-        self.storage_manager.start_read_session()?;
-        let dummy_entry = Entry {
-            index: index,
-            right_ref: 0,
-            left_ref: None
-        };
-        let found_node = self.search_helper(&dummy_entry, 1)?;
-        self.storage_manager.end_session();
-        return match found_node.entries.binary_search(&dummy_entry){
-            Ok(pos) => Ok(found_node.entries[pos].clone()),
-            Err(_) => Err(Error::new(ErrorKind::Other, "Unable to find result"))
-        };
-    }
     fn search_helper(&mut self, index: &Entry, current_node_ref: u32) -> io::Result<Node>{
-        let current_node_raw = self.storage_manager.read_data(current_node_ref)?;
-        let current_node: Result<Node> = serde_json::from_reader(Cursor::new(current_node_raw));
-        let current_node = match current_node{
-            Ok(node) => node,
-            Err(error) => {
-                panic!("Something went wrong {:?}", error);
-            }
-        };
+        let current_node = self.get_node(current_node_ref)?;
         if current_node.leaf {
             return Ok(current_node);
         }
@@ -257,7 +305,19 @@ impl BTree {
         }
         return self.search_helper(index, current_node.entries[found_index as usize].right_ref);
     }
+
+
+    fn get_node(&mut self, location: u32) -> io::Result<Node>{
+        let current_node_raw = self.storage_manager.read_data(location)?;
+        let current_node: Result<Node> = serde_json::from_reader(Cursor::new(current_node_raw));
+        return match current_node{
+            Ok(node) => Ok(node),
+            Err(error) =>  Err(Error::new(ErrorKind::Other, "Error Decoding Node"))
+        };
+    }
 }
+
+
 
 fn insert_entry(entry: &Entry, destination: &mut Vec<Entry>) -> usize{
     match destination.binary_search(&entry) {

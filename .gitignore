@@ -1,6 +1,8 @@
-PythonMVP/db/*
-PythonMVP/venv/*
-reactive_db/target/*
-*.pyc
-*.index
-*.db
+**/PythonMVP/db/**
+**PythonMVP/venv/**
+**/reactive_db/target/**
+**/.vscode/**
+
+**.pyc
+**.index
+**.db

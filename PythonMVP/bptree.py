@@ -228,9 +228,9 @@ class BPlusTree:
             if(node.is_leaf()):
                 if(node.is_full()):
                     left, right, median, median_val = node.split()
-                    next_node_ptr = self.storage_manager.get_block()
+                    next_node_ptr = self.storage_manager.allocate_block()
                     if(next_node_ptr == 1):
-                        next_node_ptr = self.storage_manager.get_block()
+                        next_node_ptr = self.storage_manager.allocate_block()
                     node.values = left
                     next_node = _Node(node.size, True)
                     next_node.values = right
@@ -244,7 +244,7 @@ class BPlusTree:
                         update_node_field(node.next, "last", next_node_ptr, self.storage_manager)
                     
                     if(node_ref == 1):
-                        node_ref = self.storage_manager.get_block()
+                        node_ref = self.storage_manager.allocate_block()
 
                     node.next = next_node_ptr
                     next_node.last = node_ref
@@ -274,13 +274,13 @@ class BPlusTree:
                         next_node = _Node(self.node_size, False)
                         next_node.values = right
                         
-                        next_node_ptr = self.storage_manager.get_block()
+                        next_node_ptr = self.storage_manager.allocate_block()
                         if(next_node_ptr == 1):
-                            next_node_ptr = self.storage_manager.get_block()
+                            next_node_ptr = self.storage_manager.allocate_block()
 
                         update_node(next_node_ptr, next_node, self.storage_manager)
                         if(node_ref == 1):
-                            node_ref = self.storage_manager.get_block()
+                            node_ref = self.storage_manager.allocate_block()
                         update_node(node_ref, node, self.storage_manager)
                         return Reference(median_val.index, node_ref, next_node_ptr)
                     else:

@@ -1,0 +1,13 @@
+tables:
+  - Derived:
+      source_table: something
+      transform_definition:
+        FunctionTransform:
+          functions:
+            - Pog
+  - Source:
+      name: something
+      columns:
+        something: Integer
+
+storage_destination: db/random/
