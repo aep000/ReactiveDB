@@ -1,8 +1,10 @@
 
+use crate::types::EntryValue;
+use crate::BTree;
+use crate::types::DataType;
 use std::collections::BTreeMap;
 use std::io::{Error, ErrorKind};
 use crate::IndexValue;
-use crate::BTree;
 use crate::StorageManager;
 use std::collections::HashMap;
 use std::io;
@@ -10,25 +12,6 @@ use serde::{Serialize, Deserialize};
 use serde_json::Result;
 
 const BTREE_NODE_SIZE: u32 = 20;
-
-#[derive(Clone, Ord, Eq, PartialOrd, PartialEq, Serialize, Deserialize, Debug)]
-pub enum DataType {
-    Integer,
-    Array(Box<DataType>),
-    Map(Vec<(String, DataType)>),
-    Float,
-    Str,
-    Bool
-}
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum EntryValue{
-    Integer(isize),
-    Array(Vec<EntryValue>),
-    Map(BTreeMap<String, EntryValue>),
-    Float(f64),
-    Str(String),
-    Bool(bool)
-}
 
 #[derive(Clone, Ord, Eq, PartialOrd, PartialEq,)]
 pub struct Column {
@@ -59,36 +42,6 @@ pub struct Table {
     output_tables: Vec<Table>,
     indexes: Vec<BTree>,
     entry_storage_manager: StorageManager
-}
-
-impl DataType {
-    pub fn is_indexible(&mut self) -> bool{
-        match self {
-            DataType::Integer => true,
-            DataType::Array(dt) => dt.is_indexible(),
-            DataType::Map(_) => false,
-            DataType::Float => false,
-            DataType::Str => true,
-            DataType::Bool => true
-        }
-    }
-}
-
-impl EntryValue {
-    pub fn to_index_value(&self) -> io::Result<IndexValue>{
-        match self {
-            EntryValue::Integer(v) => Ok(IndexValue::Integer(*v)),
-            EntryValue::Array(val) => {
-                let mut output = vec![];
-                for part in val{
-                    output.push(part.to_index_value()?);
-                }
-                Ok(IndexValue::Array(output))
-            },
-            EntryValue::Str(v) => Ok(IndexValue::String(v.clone())),
-            others => Err(create_custom_io_error(format!("Error Converting {:?} to IndexValue", others).as_str()))
-        }
-    }
 }
 
 impl Column {

@@ -3,12 +3,14 @@ mod btree;
 mod table;
 mod config_reader;
 mod parser;
+mod types;
 
 
 use crate::parser::lex_expression;
 use crate::config_reader::read_config_file;
 use std::collections::BTreeMap;
-use crate::table::{Table, TableType, Column, DataType, EntryValue};
+use crate::table::{Table, TableType, Column};
+use crate::types::{DataType, EntryValue};
 use std::time::Instant;
 use rand::distributions::Uniform;
 use crate::btree::node::IndexValue;

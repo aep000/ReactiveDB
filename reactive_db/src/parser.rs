@@ -1,3 +1,5 @@
+use crate::types::EntryValue;
+
 #[derive(Eq, PartialEq)]
 pub enum LexingMode {
     Word,
@@ -36,6 +38,14 @@ pub enum Operation {
     Sub,
     Exp
 }
+
+
+pub enum Expression {
+    FunctionCall(String, Box<Expression>),
+    Operation(Box<Expression>, Operation, Box<Expression>),
+    Value(EntryValue)
+}
+
 
 pub fn lex_expression(expression: String) -> Vec<Tokens> {
     let mut tokens = vec![];
@@ -134,10 +144,10 @@ fn convert_string_to_compare(expr: String) -> Comparison{
 fn convert_char_to_operation(op: char) -> Operation{
     match op {
         '+' => Operation::Add,
-        '*' => Operation::Add,
-        '/' => Operation::Add,
-        '-' => Operation::Add,
-        '^' => Operation::Add,
+        '*' => Operation::Mult,
+        '/' => Operation::Div,
+        '-' => Operation::Sub,
+        '^' => Operation::Exp,
         _ => panic!("Unknown operation {}", op)
     }
 }

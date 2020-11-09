@@ -1,9 +1,8 @@
 use std::fs::OpenOptions;
-use crate::DataType;
+use crate::types::DataType;
 use serde::{Serialize, Deserialize};
 use std::collections::BTreeMap;
 use std::io;
-use std::fs;
 use serde_yaml::Result;
 
 #[derive(Serialize, Deserialize, Debug)]
