@@ -1,14 +1,12 @@
 
+use crate::types::create_custom_io_error;
 use crate::types::EntryValue;
 use crate::BTree;
 use crate::types::DataType;
 use std::collections::BTreeMap;
-use std::io::{Error, ErrorKind};
-use crate::IndexValue;
 use crate::StorageManager;
 use std::collections::HashMap;
 use std::io;
-use serde::{Serialize, Deserialize};
 use serde_json::Result;
 
 const BTREE_NODE_SIZE: u32 = 20;
@@ -166,8 +164,4 @@ impl Table {
         self.entry_storage_manager.end_session();
         return Ok(output)
     }
-}
-
-fn create_custom_io_error(text:&str) -> io::Error{
-    return Error::new(ErrorKind::Other, text);
 }

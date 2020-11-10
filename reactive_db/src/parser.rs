@@ -6,20 +6,22 @@ pub enum LexingMode {
     Nothing,
     Number,
     Operator,
+    Str,
     Comparison
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum Tokens {
     Word(String),
     OpenParen,
     CloseParen,
     Number(String),
+    Str(String),
     Assign,
     Operator(Operation),
     Comparison(Comparison)
 }
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum Comparison {
     Lt,
     Gt,
@@ -30,7 +32,7 @@ pub enum Comparison {
     Or,
     And
 }
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum Operation {
     Mult,
     Div,
@@ -39,11 +41,111 @@ pub enum Operation {
     Exp
 }
 
+#[derive(Debug)]
+pub enum OperationOrComparison{
+    Operation(Operation),
+    Comparison(Comparison)
+}
 
+impl OperationOrComparison {
+    pub fn get_operation_or_comparison(token: Tokens) -> Result<OperationOrComparison, ()>{
+        match token {
+            Tokens::Operator(operation) => Ok(OperationOrComparison::Operation(operation)),
+            Tokens::Comparison(comparison) => Ok(OperationOrComparison::Comparison(comparison)),
+            _ => Err(())
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum Expression {
-    FunctionCall(String, Box<Expression>),
-    Operation(Box<Expression>, Operation, Box<Expression>),
-    Value(EntryValue)
+    FunctionCall(String, Box<ExpressionValue>),
+    Operation(Box<ExpressionValue>, OperationOrComparison, Box<ExpressionValue>),
+}
+
+impl Expression {
+    pub fn expression_from_tokens(tokens: Vec<Tokens>) -> Result<Expression, String>{
+        let mut parens = 0;
+        let mut output: Result<Expression, String> = Err("No Expression Found".to_string());
+        for (i, t) in tokens.iter().enumerate() {
+            match t {
+                Tokens::OpenParen => parens += 1,
+                Tokens::CloseParen => parens -= 1,
+                Tokens::Comparison(comparison) => {
+                    if parens == 0 {
+                        let left_vec = tokens[..i].to_vec();
+                        let right_vec = tokens[i+1..].to_vec();
+                        let left_expr_val = ExpressionValue::get_expression_value(left_vec)?;
+                        let right_expr_val = ExpressionValue::get_expression_value(right_vec)?;
+                        output = Ok(Expression::Operation(Box::new(left_expr_val), OperationOrComparison::Comparison(comparison.clone()), Box::new(right_expr_val)));
+                        break;
+                    }
+                },
+                Tokens::Operator(operation) => {
+                    if parens == 0 {
+                        let left_vec = tokens[..i].to_vec();
+                        let right_vec = tokens[i+1..].to_vec();
+                        let left_expr_val = ExpressionValue::get_expression_value(left_vec)?;
+                        let right_expr_val = ExpressionValue::get_expression_value(right_vec)?;
+                        output = Ok(Expression::Operation(Box::new(left_expr_val), OperationOrComparison::Operation(operation.clone()), Box::new(right_expr_val)));
+                    }
+                },
+                Tokens::Word(word) => {
+                    if i < tokens.len()-3 && parens == 0{
+                        if tokens[i+1] == Tokens::OpenParen {
+                            let function_params_tokens = tokens[i+1..].to_vec();
+                            let function_params_value = ExpressionValue::get_expression_value(function_params_tokens)?;
+                            output = Ok(Expression::FunctionCall(word.clone(), Box::new(function_params_value)));
+                        }
+                    }
+                },
+                _ => {}
+            };
+        }
+        return output;
+    }
+}
+
+#[derive(Debug)]
+pub enum ExpressionValue {
+    Value(EntryValue),
+    TableReference(String),
+    SubExpression(Expression)
+}
+
+impl ExpressionValue {
+    fn get_expression_value(tokens: Vec<Tokens>) -> Result<ExpressionValue, String>{
+        let mut striped_tokens = tokens;
+        while striped_tokens[0] == Tokens::OpenParen && striped_tokens[striped_tokens.len()-1] == Tokens::CloseParen {
+            striped_tokens = striped_tokens[1..striped_tokens.len()-1].to_vec();
+        }
+        if striped_tokens.len() == 1 {
+            return match striped_tokens[0].clone() {
+                Tokens::Str(string_value) => Ok(ExpressionValue::Value(EntryValue::Str(string_value))),
+                Tokens::Number(string_version) => {
+                    let conversion_result = match string_version.parse::<isize>() {
+                        Ok(number) => number,
+                        _ => Err(format!("issue converting integer {:?}", string_version))?
+                    };
+                    Ok(ExpressionValue::Value(EntryValue::Integer(conversion_result)))
+                },
+                Tokens::Word(word) => {
+                    if word == "true" {
+                        return Ok(ExpressionValue::Value(EntryValue::Bool(true)))
+                    }
+                    if word == "false" {
+                        return Ok(ExpressionValue::Value(EntryValue::Bool(false)))
+                    }
+                    
+                    return Ok(ExpressionValue::TableReference(word))
+                },
+                _ => Err(format!("Unable to convert expression value from {:?}",striped_tokens))
+            }
+        }
+        else {
+            return Ok(ExpressionValue::SubExpression(Expression::expression_from_tokens(striped_tokens)?));
+        }
+    }
 }
 
 
@@ -53,7 +155,7 @@ pub fn lex_expression(expression: String) -> Vec<Tokens> {
     let mut token_buffer = String::new();
     for (i,c) in expression.chars().enumerate() {
         if mode == LexingMode::Number {
-            if i == expression.len()-1 {
+            if i == expression.len()-1 && c.is_numeric() {
                 token_buffer.push(c);
                 tokens.push(Tokens::Number(token_buffer));
                 token_buffer = String::new();
@@ -68,12 +170,12 @@ pub fn lex_expression(expression: String) -> Vec<Tokens> {
             }
         }
         if mode == LexingMode::Word {
-            if i == expression.len()-1 {
+            if i == expression.len()-1 && c.is_alphanumeric(){
                 token_buffer.push(c);
                 tokens.push(Tokens::Word(token_buffer));
                 token_buffer = String::new();
             }
-            else if c.is_alphanumeric() {
+            else if c.is_alphanumeric() || c == '.'{
                 token_buffer.push(c);
             }
             else {
@@ -97,18 +199,36 @@ pub fn lex_expression(expression: String) -> Vec<Tokens> {
                 mode = LexingMode::Nothing;
             }
         }
+        if mode == LexingMode::Str {
+            if i == expression.len()-1 {
+                tokens.push(Tokens::Str(token_buffer));
+                token_buffer = String::new();
+            }
+            else if c != '"'{
+                token_buffer.push(c);
+            }
+            else {
+                tokens.push(Tokens::Str(token_buffer));
+                token_buffer = String::new();
+                mode = LexingMode::Nothing;
+            }
+        }
+
         if mode == LexingMode::Nothing {
             if c.is_alphabetic() {
                 token_buffer.push(c);
-                mode = LexingMode::Word
+                mode = LexingMode::Word;
+            }
+            else if c == '"' {
+                mode = LexingMode::Str;
             }
             else if c == '=' || c == '<' || c == '>' || c == '|' || c == '&' || c == '!' {
                 token_buffer.push(c);
-                mode = LexingMode::Comparison
+                mode = LexingMode::Comparison;
             }
             else if c.is_numeric() || c == '.' {
                 token_buffer.push(c);
-                mode = LexingMode::Number
+                mode = LexingMode::Number;
             }
             else if c == '*' || c == '/' || c == '+' || c == '-' || c == '^' {
                 tokens.push(Tokens::Operator(convert_char_to_operation(c)));

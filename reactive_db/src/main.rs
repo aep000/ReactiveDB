@@ -6,6 +6,7 @@ mod parser;
 mod types;
 
 
+use crate::parser::Expression;
 use crate::parser::lex_expression;
 use crate::config_reader::read_config_file;
 use std::collections::BTreeMap;
@@ -42,7 +43,7 @@ fn main() -> io::Result<()>{
 */
     //print!("{:?}",read_config_file("test_cfg.yaml".to_string()));
 
-    print!("{:?}\n", lex_expression("(x <= y1 + 512): something".to_string()));
+    print!("{:?}\n", Expression::expression_from_tokens(lex_expression("x <= (y1 + 512)".to_string())));
 
     return Ok(());
 }
