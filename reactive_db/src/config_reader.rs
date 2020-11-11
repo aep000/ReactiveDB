@@ -7,8 +7,8 @@ use serde_yaml::Result;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DbConfig {
-    tables: Vec<TableConfig>,
-    storage_destination: String
+    pub tables: Vec<TableConfig>,
+    pub storage_destination: String
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub enum TableConfig {
@@ -24,22 +24,36 @@ pub struct SourceTableConfig {
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TransformTableConfig {
-    source_table: String,
+    name: String,
     transform_definition: TransformType
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum TransformType {
     FunctionTransform(FunctionTransformConfig),
-    FilterTransform,
-    UnionTransform,
+    FilterTransform(FilterTransformConfig),
+    UnionTransform(UnionTransformConfig),
+    // TODO impliment Aggregations
     AggregationTransform
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FunctionTransformConfig {
+    soure_table: String,
     functions: Vec<String>
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UnionTransformConfig {
+    tables_and_foreign_keys: Vec<(String, String)>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct FilterTransformConfig {
+    soure_table: String,
+    filter: String
+}
+
 
 pub fn read_config_file(file_path: String) -> io::Result<DbConfig> {
     let file = OpenOptions::new().read(true).open(&file_path)?;

@@ -1,7 +1,59 @@
+use crate::types::OperationOrComparison;
+use crate::types::Comparison;
+use crate::types::Operation;
 use crate::types::EntryValue;
 
+#[derive(Clone, Ord, Eq, PartialOrd, PartialEq, Debug)]
+pub enum Statement {
+    Assignment(String, Expression),
+    Comparison(Expression)
+}
+
+impl Statement {
+    pub fn new_assignment(raw_assignment: String) -> Result<Statement, String>{
+        let tokenized_assignment = lex_expression(&raw_assignment);
+        for (i, t) in tokenized_assignment.iter().enumerate() {
+            if t.eq(&Tokens::Assign) {
+                if i == 1 {
+                    let expression = Expression::from_tokens(tokenized_assignment[i+1..].to_vec())?;
+                    let destination = match &tokenized_assignment[i-1]{
+                        Tokens::Word(destination) => Ok(destination),
+                        _ => Err(format!("Assignment destination is not a word in statement {:?}", raw_assignment))
+                    }?;
+                    return Ok(Statement::Assignment(destination.clone(), expression));
+                }
+                else if i == tokenized_assignment.len()-2 {
+                    let expression = Expression::from_tokens(tokenized_assignment[..i].to_vec())?;
+                    let destination = match &tokenized_assignment[i+1]{
+                        Tokens::Word(destination) => Ok(destination),
+                        _ => Err(format!("Assignment destination is not a word in statement {:?}", raw_assignment))
+                    }?;
+                    return Ok(Statement::Assignment(destination.clone(), expression));
+                }
+                else {
+                    return Err(format!("Error parsing assignment: Assignment found in middle of statement: {:?}", raw_assignment));
+                }
+            }
+        }
+        return Err(format!("Error parsing assignment: No assignment found in: {:?}", raw_assignment));
+
+    }
+    pub fn new_comparison(raw_comparison: String) -> Result<Statement, String>{
+        let tokenized_comparison = lex_expression(&raw_comparison);
+        let expression = Expression::from_tokens(tokenized_comparison)?;
+        return Ok(Statement::Comparison(expression));
+    }
+}
+
+
+#[derive(Clone, Ord, Eq, PartialOrd, PartialEq, Debug)]
+pub enum Expression {
+    FunctionCall(String, Box<ExpressionValue>),
+    Operation(Box<ExpressionValue>, OperationOrComparison, Box<ExpressionValue>),
+}
+
 #[derive(Eq, PartialEq)]
-pub enum LexingMode {
+enum LexingMode {
     Word,
     Nothing,
     Number,
@@ -21,50 +73,9 @@ pub enum Tokens {
     Operator(Operation),
     Comparison(Comparison)
 }
-#[derive(Eq, PartialEq, Debug, Clone)]
-pub enum Comparison {
-    Lt,
-    Gt,
-    Gte,
-    Lte,
-    Eq,
-    Neq,
-    Or,
-    And
-}
-#[derive(Eq, PartialEq, Debug, Clone)]
-pub enum Operation {
-    Mult,
-    Div,
-    Add,
-    Sub,
-    Exp
-}
-
-#[derive(Debug)]
-pub enum OperationOrComparison{
-    Operation(Operation),
-    Comparison(Comparison)
-}
-
-impl OperationOrComparison {
-    pub fn get_operation_or_comparison(token: Tokens) -> Result<OperationOrComparison, ()>{
-        match token {
-            Tokens::Operator(operation) => Ok(OperationOrComparison::Operation(operation)),
-            Tokens::Comparison(comparison) => Ok(OperationOrComparison::Comparison(comparison)),
-            _ => Err(())
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum Expression {
-    FunctionCall(String, Box<ExpressionValue>),
-    Operation(Box<ExpressionValue>, OperationOrComparison, Box<ExpressionValue>),
-}
 
 impl Expression {
-    pub fn expression_from_tokens(tokens: Vec<Tokens>) -> Result<Expression, String>{
+    pub fn from_tokens(tokens: Vec<Tokens>) -> Result<Expression, String>{
         let mut parens = 0;
         let mut output: Result<Expression, String> = Err("No Expression Found".to_string());
         for (i, t) in tokens.iter().enumerate() {
@@ -106,7 +117,7 @@ impl Expression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Ord, Eq, PartialOrd, PartialEq, Debug)]
 pub enum ExpressionValue {
     Value(EntryValue),
     TableReference(String),
@@ -143,13 +154,13 @@ impl ExpressionValue {
             }
         }
         else {
-            return Ok(ExpressionValue::SubExpression(Expression::expression_from_tokens(striped_tokens)?));
+            return Ok(ExpressionValue::SubExpression(Expression::from_tokens(striped_tokens)?));
         }
     }
 }
 
 
-pub fn lex_expression(expression: String) -> Vec<Tokens> {
+fn lex_expression(expression: &String) -> Vec<Tokens> {
     let mut tokens = vec![];
     let mut mode = LexingMode::Nothing;
     let mut token_buffer = String::new();
@@ -251,12 +262,12 @@ fn convert_string_to_compare(expr: String) -> Comparison{
     match expr.as_str() {
         "==" => Comparison::Eq,
         "!=" => Comparison::Neq,
-        "<=" => Comparison::Neq,
-        ">=" => Comparison::Neq,
-        "<" => Comparison::Neq,
-        ">" => Comparison::Neq,
-        "&&" => Comparison::Neq,
-        "||" => Comparison::Neq,
+        "<=" => Comparison::Lte,
+        ">=" => Comparison::Gte,
+        "<" => Comparison::Lt,
+        ">" => Comparison::Gt,
+        "&&" => Comparison::And,
+        "||" => Comparison::Or,
         _ => panic!("Unknown comparison {}", expr)
     }
 }

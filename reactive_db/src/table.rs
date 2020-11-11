@@ -1,4 +1,9 @@
 
+use crate::transform::Transform;
+use crate::parser::ExpressionValue;
+use crate::Expression;
+use crate::parser::Statement;
+use crate::database::Database;
 use crate::types::create_custom_io_error;
 use crate::types::EntryValue;
 use crate::BTree;
@@ -25,19 +30,12 @@ pub enum TableType {
     Derived(Transform)
 }
 
-#[derive(Clone, Ord, Eq, PartialOrd, PartialEq,)]
-pub enum Transform {
-    Filter,
-    Union,
-    Function,
-    Aggregate
-}
 
 pub struct Table {
     name: String,
     columns: HashMap<String, Column>,
     table_type: TableType,
-    output_tables: Vec<Table>,
+    output_tables: Vec<String>,
     indexes: Vec<BTree>,
     entry_storage_manager: StorageManager
 }
@@ -78,7 +76,7 @@ impl Table {
             entry_storage_manager: entry_storage_manager
         });
     }
-    pub fn insert(&mut self, entry: BTreeMap<String, EntryValue>) -> io::Result<()>{
+    pub fn insert(&mut self, entry: BTreeMap<String, EntryValue>, db: Database) -> io::Result<()>{
         self.entry_storage_manager.start_write_session()?;
         let reserved_root = self.entry_storage_manager.allocate_block();
         for (name, val) in &entry{
