@@ -10,7 +10,7 @@ use crate::Table;
 use crate::config_reader::{DbConfig, TableConfig};
 
 pub struct Database {
-    tables: HashMap<String, Table>
+    pub tables: HashMap<String, Table>
 }
 
 

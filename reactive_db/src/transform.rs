@@ -1,13 +1,16 @@
+use crate::Table;
+use crate::database::Database;
 use crate::parser::ExpressionValue;
 use crate::Expression;
 use crate::EntryValue;
 use crate::parser::Statement;
 use std::collections::BTreeMap;
 
+// Transform struct generated after parsing the config file
 #[derive(Clone, Ord, Eq, PartialOrd, PartialEq,)]
 pub enum Transform {
     Filter(Statement),
-    Union(String, String),
+    Union(Vec<(String, String)>),
     Function(Vec<Statement>),
     //TODO Impl Aggregate
     Aggregate
@@ -15,7 +18,7 @@ pub enum Transform {
 
 
 impl Transform {
-    pub fn execute(self, transaction: BTreeMap<String, EntryValue>, table_name:String) -> Option<BTreeMap<String, EntryValue>>{
+    pub fn execute(self, transaction: BTreeMap<String, EntryValue>, table_name:String, db: Database) -> Option<BTreeMap<String, EntryValue>>{
         match self {
             Transform::Function(statments) => {
                 match Transform::function_transform(statments, transaction) {
@@ -70,6 +73,44 @@ impl Transform {
                 }
             }
             _ => Err("Assignment statement not allowed in filter".to_string())
+        }
+    }
+
+    fn union_transform(table_foreign_key_pairs: Vec<(String, String)>, transaction: BTreeMap<String, EntryValue>, table_name: String, db: &mut Database) -> std::result::Result<BTreeMap<String, EntryValue>, String> {
+        let dest_table  = db.tables.get_mut(&table_name);
+        let mut foreign_key = "".to_string();
+        // This is slow and should be solved
+        for maybe_t in table_foreign_key_pairs {
+            if maybe_t.0 == table_name {
+                foreign_key = maybe_t.1;
+                break;
+            }
+        }
+        match dest_table {
+            Some(table) => {
+                let search_value = match transaction.get(&foreign_key) {
+                    Some(v) => Ok(v),
+                    None => Err(format!("Transaction missing key {}", table_name))
+                }?;
+                let existing_entry_result = table.exact_get(foreign_key, search_value);
+                match existing_entry_result {
+                    Ok(existing_entry_exists) => {
+                        match existing_entry_exists {
+                            Some(mut existing_entry) => {
+                                for (k, v) in transaction {
+                                    existing_entry.insert(k, v);
+                                }
+                                return Ok(existing_entry)
+                            }
+                            None => {
+                                return Ok(transaction);
+                            }
+                        }
+                    },
+                    Err(e) => Err(format!("{:?}", e))
+                }
+            },
+            None => Err(format!("No table of name {}", table_name))
         }
     }
 }

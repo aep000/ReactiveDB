@@ -96,7 +96,7 @@ impl Table {
         Ok(())
     }
 
-    pub fn exact_get(&mut self, search_column_name: String, value: EntryValue) -> io::Result<BTreeMap<String, EntryValue>>{
+    pub fn exact_get(&mut self, search_column_name: String, value: &EntryValue) -> io::Result<Option<BTreeMap<String, EntryValue>>>{
         let column = match self.columns.get(&search_column_name){
             Some(c) => Ok(c),
             None => Err(create_custom_io_error(format!("No such column {} exists", search_column_name).as_str()))
@@ -105,14 +105,19 @@ impl Table {
             return Err(create_custom_io_error(format!("No such column {} exists", search_column_name).as_str()));
         }
         let location_ref = self.indexes[column.index_loc].search_exact(value.to_index_value()?)?;
-        self.entry_storage_manager.start_read_session()?;
-        let raw_entry = self.entry_storage_manager.read_data(location_ref.right_ref)?;
-        self.entry_storage_manager.end_session();
-        let entry: Result<BTreeMap<String, EntryValue>>= serde_json::from_slice(raw_entry.as_slice());
-        return match entry {
-            Ok(tree) => Ok(tree),
-            Err(e) => Err(create_custom_io_error(format!("{:?}", e).as_str()))
-        };
+        match location_ref {
+            Some(location_ref) => {
+                self.entry_storage_manager.start_read_session()?;
+                let raw_entry = self.entry_storage_manager.read_data(location_ref.right_ref)?;
+                self.entry_storage_manager.end_session();
+                let entry: Result<BTreeMap<String, EntryValue>>= serde_json::from_slice(raw_entry.as_slice());
+                return match entry {
+                    Ok(tree) => Ok(Some(tree)),
+                    Err(e) => Err(create_custom_io_error(format!("{:?}", e).as_str()))
+                };
+            }
+            None => Ok(None)
+        }
     }
 
     pub fn less_than(&mut self, search_column_name: String, value: EntryValue, equals: bool) -> io::Result<Vec<BTreeMap<String, EntryValue>>>{

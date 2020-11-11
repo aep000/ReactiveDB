@@ -8,6 +8,8 @@ mod database;
 mod transform;
 
 
+use std::collections::HashMap;
+use crate::database::Database;
 use crate::transform::Transform;
 use crate::parser::Statement;
 use crate::parser::Expression;
@@ -50,7 +52,7 @@ fn main() -> io::Result<()>{
     let tfm = Transform::Function(vec![Statement::new_assignment("test1/2: something".to_string()).unwrap()]);
     let mut some_transaction = BTreeMap::new();
     some_transaction.insert("test1".to_string(), EntryValue::Integer(100));
-    print!("{:?}\n",tfm.execute(some_transaction, "Some stuff".to_string()));
+    print!("{:?}\n",tfm.execute(some_transaction, "Some stuff".to_string(), Database {tables: HashMap::new()}));
 
     return Ok(());
 }

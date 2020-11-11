@@ -71,7 +71,7 @@ impl BTree {
     }
 
     // Searches for exact values and never 
-    pub fn search_exact(&mut self, index: IndexValue) ->  io::Result<Entry>{
+    pub fn search_exact(&mut self, index: IndexValue) ->  io::Result<Option<Entry>>{
         self.storage_manager.start_read_session()?;
         let dummy_entry = Entry {
             index: index,
@@ -81,8 +81,8 @@ impl BTree {
         let found_node = self.search_helper(&dummy_entry, 1)?;
         self.storage_manager.end_session();
         return match found_node.entries.binary_search(&dummy_entry){
-            Ok(pos) => Ok(found_node.entries[pos].clone()),
-            Err(_) => Err(Error::new(ErrorKind::Other, "Unable to find result"))
+            Ok(pos) => Ok(Some(found_node.entries[pos].clone())),
+            Err(_) => Ok(None)
         };
     }
 
