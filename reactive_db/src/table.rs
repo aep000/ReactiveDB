@@ -1,8 +1,5 @@
 
 use crate::transform::Transform;
-use crate::parser::ExpressionValue;
-use crate::Expression;
-use crate::parser::Statement;
 use crate::database::Database;
 use crate::types::create_custom_io_error;
 use crate::types::EntryValue;
@@ -11,8 +8,10 @@ use crate::types::DataType;
 use std::collections::BTreeMap;
 use crate::StorageManager;
 use std::collections::HashMap;
-use std::io;
+use std::{io, fs};
 use serde_json::Result;
+use regex::Regex;
+
 
 const BTREE_NODE_SIZE: u32 = 20;
 
@@ -56,16 +55,27 @@ impl Table {
         let entry_storage_manager = StorageManager::new(format!("db/{}.db", name))?;
         let mut indexes = vec![];
         let mut column_map = HashMap::new();
-        for column in &columns {
-            let mut column = column.clone();
-            if column.data_type.is_indexible(){
-                let file_name = format!("db/{}_{}.index", name, column.name);
-                let storage_manager = StorageManager::new(file_name)?;
-                column.indexed = true;
-                column.index_loc = indexes.len();
-                indexes.push(BTree::new(BTREE_NODE_SIZE, storage_manager)?);
+        match table_type {
+            TableType::Source => {
+                for column in &columns {
+                    let mut column = column.clone();
+                    if column.data_type.is_indexible(){
+                        let file_name = format!("db/{}_{}.index", name, column.name);
+                        let storage_manager = StorageManager::new(file_name)?;
+                        column.indexed = true;
+                        column.index_loc = indexes.len();
+                        indexes.push(BTree::new(BTREE_NODE_SIZE, storage_manager)?);
+                    }
+                    column_map.insert(column.name.clone(), column);
+                }
             }
-            column_map.insert(column.name.clone(), column);
+            TableType::Derived(_) => {
+                // TODO Fix derived table columns so you can read without inserting on restart 
+                /*for dir_entry in fs::read_dir("db/")? {
+                    let path = dir_entry?.path();
+                    let re = Regex::new(format!("{}_.*.index", name)).unwrap();
+                }*/
+            }
         }
         return Ok(Table {
             name: name,
@@ -87,7 +97,13 @@ impl Table {
                     }
                 }
                 None=> {
-                    return Err(create_custom_io_error("Missmatched Input"));
+                    return match self.table_type {
+                        TableType::Derived(_) => {
+                            let new_column = Column::new(name.to_string(), get_data_type_of_entry(val));
+                            return self.create_new_index(new_column);
+                        }
+                        _ => Err(create_custom_io_error("Missmatched Input"))
+                    }
                 }
             };
         }
@@ -166,5 +182,34 @@ impl Table {
         }
         self.entry_storage_manager.end_session();
         return Ok(output)
+    }
+
+    fn create_new_index(&mut self, mut column: Column) -> io::Result<()> {
+        if column.data_type.is_indexible(){
+            let file_name = format!("db/{}_{}.index", self.name, column.name);
+            let storage_manager = StorageManager::new(file_name)?;
+            column.indexed = true;
+            column.index_loc = self.indexes.len();
+            self.indexes.push(BTree::new(BTREE_NODE_SIZE, storage_manager)?);
+        }
+        self.columns.insert(column.name.clone(), column);
+        return Ok(())
+    }
+}
+
+
+fn get_data_type_of_entry(entry: &EntryValue) -> DataType{
+    return match entry {
+        EntryValue::Array(data) => DataType::Array(Box::new(get_data_type_of_entry(&data[0]))),
+        EntryValue::Integer(_) => DataType::Integer,
+        EntryValue::Str(_) => DataType::Str,
+        EntryValue::Bool(_) => DataType::Bool,
+        EntryValue::Map(data) => {
+            let mut output = vec![];
+            for (key, v) in data {
+                output.push((key.clone(), get_data_type_of_entry(v)))
+            }
+            return DataType::Map(output)
+        }
     }
 }

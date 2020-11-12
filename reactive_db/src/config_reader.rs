@@ -24,8 +24,8 @@ pub struct SourceTableConfig {
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TransformTableConfig {
-    name: String,
-    transform_definition: TransformType
+    pub name: String,
+    pub transform_definition: TransformType
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -39,19 +39,19 @@ pub enum TransformType {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FunctionTransformConfig {
-    soure_table: String,
-    functions: Vec<String>
+    pub soure_table: String,
+    pub functions: Vec<String>
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UnionTransformConfig {
-    tables_and_foreign_keys: Vec<(String, String)>,
+    pub tables_and_foreign_keys: Vec<(String, String)>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FilterTransformConfig {
-    soure_table: String,
-    filter: String
+    pub soure_table: String,
+    pub filter: String
 }
 
 
