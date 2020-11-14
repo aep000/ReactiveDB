@@ -1,20 +1,19 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt;
 
-
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Node{
+pub struct Node {
     pub entries: Vec<Entry>,
     pub next_node: u32,
-    pub leaf: bool
+    pub leaf: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Entry{
+pub struct Entry {
     pub index: IndexValue,
     pub left_ref: Option<u32>,
-    pub right_ref: u32
+    pub right_ref: u32,
 }
 
 impl Ord for Entry {
@@ -44,8 +43,6 @@ pub enum IndexValue {
     String(String),
     Array(Vec<IndexValue>),
 }
-
-
 
 impl fmt::Debug for IndexValue {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

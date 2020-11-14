@@ -1,27 +1,23 @@
-
-
-
-use crate::TableType;
-use crate::Statement;
+use crate::config_reader::{DbConfig, TableConfig, TransformTableConfig, TransformType};
 use crate::parser::ExpressionValue;
-use std::collections::BTreeMap;
+use crate::transform::Transform;
+use crate::Column;
 use crate::EntryValue;
 use crate::Expression;
-use std::collections::HashMap;
+use crate::Statement;
 use crate::Table;
-use crate::Column;
-use crate::config_reader::{DbConfig, TableConfig, TransformTableConfig, TransformType};
-use crate::transform::Transform;
+use crate::TableType;
+use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 pub struct Database {
-    pub tables: HashMap<String, Table>
+    pub tables: HashMap<String, Table>,
 }
-
 
 impl Database {
     // TODO
     pub fn from_config(config: DbConfig) -> Result<Database, String> {
-        let mut tables:HashMap<String, Table> = HashMap::new();
+        let mut tables: HashMap<String, Table> = HashMap::new();
         for table in config.tables {
             match table {
                 TableConfig::Source(source_config) => {
@@ -32,14 +28,14 @@ impl Database {
                     }
                     let new_table = match Table::new(name.clone(), columns, TableType::Source) {
                         Ok(t) => Ok(t),
-                        Err(e) => Err(format!("{:?}", e))
+                        Err(e) => Err(format!("{:?}", e)),
                     }?;
                     tables.insert(name, new_table);
-                },
+                }
                 TableConfig::Derived(config) => {
                     let table = parse_transform_config(config)?;
                     tables.insert(table.name.clone(), table);
-                },
+                }
                 _ => {}
             }
         }
@@ -49,102 +45,118 @@ impl Database {
                 input_refs.push((input_table_name.clone(), name.clone()));
             }
         }
-        for (source_table, dest_table)in input_refs {
+        for (source_table, dest_table) in input_refs {
             let table_to_mod = match tables.get_mut(&source_table) {
                 Some(t) => t,
-                None => Err("Specified input table does not exist".to_string())?
+                None => Err("Specified input table does not exist".to_string())?,
             };
             table_to_mod.output_tables.push(dest_table.clone());
         }
-        return Ok(Database {
-            tables: tables
-        });
+        return Ok(Database { tables: tables });
     }
-    
-    pub fn exact_search(&mut self, table: &String, column: String, key: EntryValue) -> Result<Option<BTreeMap<String, EntryValue>>, String>{
-        let mut table_obj = match self.tables.get_mut(table){
+
+    pub fn exact_search(
+        &mut self,
+        table: &String,
+        column: String,
+        key: EntryValue,
+    ) -> Result<Option<BTreeMap<String, EntryValue>>, String> {
+        let mut table_obj = match self.tables.get_mut(table) {
             Some(t) => t,
-            None => Err(format!("Unable to find table {}", table))?
+            None => Err(format!("Unable to find table {}", table))?,
         };
         match table_obj.exact_get(column, &key) {
             Ok(r) => Ok(r),
-            Err(e) => Err(format!("Error when searching for entry {}", e))
+            Err(e) => Err(format!("Error when searching for entry {}", e)),
         }
     }
 
     // TODO clean this dumpster fire
-    pub fn insert_entry<'a>(&mut self, table:&String, entry: BTreeMap<String, EntryValue>) -> Result<(), String>{
+    pub fn insert_entry<'a>(
+        &mut self,
+        table: &String,
+        entry: BTreeMap<String, EntryValue>,
+    ) -> Result<(), String> {
         let output_tables = self.get_all_next_inserts(table);
         let transform = self.get_table_transform(table);
         let entry = match transform {
             Some(transform) => transform.execute(entry, table, self),
-            None => Some(entry)
+            None => Some(entry),
         };
 
-        match self.tables.get_mut(table){
+        match self.tables.get_mut(table) {
             Some(t) => {
                 match entry {
                     Some(unwrapped_entry) => match t.insert(unwrapped_entry) {
-                            Ok(inserted_entry_results) => {
-                                match inserted_entry_results {
-                                    Some(inserted_entry_unwrapped) => {
-                                        for output_table in output_tables {
-                                            self.insert_entry(&output_table, inserted_entry_unwrapped.clone())?;
-                                        }
-                                        ()
-                                    },
-                                    None => ()
+                        Ok(inserted_entry_results) => match inserted_entry_results {
+                            Some(inserted_entry_unwrapped) => {
+                                for output_table in output_tables {
+                                    self.insert_entry(
+                                        &output_table,
+                                        inserted_entry_unwrapped.clone(),
+                                    )?;
                                 }
-                            },
-                            Err(e) => Err(format!("Error when searching for entry {}", e))?
+                                ()
+                            }
+                            None => (),
+                        },
+                        Err(e) => Err(format!("Error when searching for entry {}", e))?,
                     },
-                    None => ()
+                    None => (),
                 };
-                
             }
-            None => Err(format!("Unable to find table {}", table))?
+            None => Err(format!("Unable to find table {}", table))?,
         };
-
 
         return Ok(());
     }
 
-    pub fn less_than_search(&mut self, table: &String, column: String, key: EntryValue) -> Result<Vec<BTreeMap<String, EntryValue>>, String>{
-        let mut table_obj = match self.tables.get_mut(table){
+    pub fn less_than_search(
+        &mut self,
+        table: &String,
+        column: String,
+        key: EntryValue,
+    ) -> Result<Vec<BTreeMap<String, EntryValue>>, String> {
+        let mut table_obj = match self.tables.get_mut(table) {
             Some(t) => t,
-            None => Err(format!("Unable to find table {}", table))?
+            None => Err(format!("Unable to find table {}", table))?,
         };
         match table_obj.less_than(column, key, false) {
             Ok(r) => Ok(r),
-            Err(e) => Err(format!("Error when searching for entry {}", e))
+            Err(e) => Err(format!("Error when searching for entry {}", e)),
         }
     }
 
-    pub fn greater_than_search(&mut self, table: &String, column: String, key: EntryValue) -> Result<Vec<BTreeMap<String, EntryValue>>, String>{
-        let mut table_obj = match self.tables.get_mut(table){
+    pub fn greater_than_search(
+        &mut self,
+        table: &String,
+        column: String,
+        key: EntryValue,
+    ) -> Result<Vec<BTreeMap<String, EntryValue>>, String> {
+        let mut table_obj = match self.tables.get_mut(table) {
             Some(t) => t,
-            None => Err(format!("Unable to find table {}", table))?
+            None => Err(format!("Unable to find table {}", table))?,
         };
         match table_obj.greater_than(column, key) {
             Ok(r) => Ok(r),
-            Err(e) => Err(format!("Error when searching for entry {}", e))
+            Err(e) => Err(format!("Error when searching for entry {}", e)),
         }
     }
 
-    fn get_all_next_inserts(& self, table: &String) -> Vec<String> {
+    fn get_all_next_inserts(&self, table: &String) -> Vec<String> {
         match self.tables.get(table) {
             Some(t) => t.output_tables.clone(),
-            None => vec![]
+            None => vec![],
         }
     }
 
-    fn get_table_transform(& self, table: &String) -> Option<Transform> {
+    fn get_table_transform(&self, table: &String) -> Option<Transform> {
         match self.tables.get(table) {
             Some(t) => match &t.table_type {
                 TableType::Source => None,
-                TableType::Derived(transform) => Some(transform.clone()) 
+                TableType::Derived(transform) => Some(transform.clone()),
             },
-            None => None
+            None => None,
         }
     }
 }
@@ -161,7 +173,7 @@ fn parse_transform_config(config: TransformTableConfig) -> Result<Table, String>
                 statements.push(Statement::new_assignment(raw_statement)?);
             }
             Transform::Function(statements)
-        },
+        }
         TransformType::FilterTransform(config) => {
             let statement = Statement::new_comparison(config.filter)?;
             input_tables.push(config.soure_table);
@@ -173,14 +185,14 @@ fn parse_transform_config(config: TransformTableConfig) -> Result<Table, String>
             }
             Transform::Union(config.tables_and_foreign_keys)
         }
-        _ => Err("Unsupported derived table".to_string())?
+        _ => Err("Unsupported derived table".to_string())?,
     };
     let mut table = Table::new(name, columns, TableType::Derived(transform));
     match table {
         Ok(mut t) => {
             t.input_tables = input_tables;
             Ok(t)
-        },
-        Err(e) => Err(format!("{:?}", e))
+        }
+        Err(e) => Err(format!("{:?}", e)),
     }
 }

@@ -17,6 +17,7 @@ pub enum InsertResult {
 }
 
 impl BTree {
+    /// Creates a new Btree index by taking ownership of a storage manager
     pub fn new(node_size: u32, mut storage_manager: StorageManager) -> io::Result<BTree>{
         storage_manager.start_write_session()?;
         if storage_manager.is_empty(1)? {
@@ -68,6 +69,11 @@ impl BTree {
         }
         self.storage_manager.end_session();
         return Ok(());
+    }
+
+    pub fn delete(&mut self, index: IndexValue, reference:u32) -> io::Result<Option<Entry>>{
+        self.storage_manager.start_write_session()?;
+
     }
 
     // Searches for exact values and never 
@@ -286,6 +292,60 @@ impl BTree {
                 }
             };
         }
+    }
+    // THIS IS VERY BROKEN DO NOT USE THIS YET
+    fn delete_helper(&mut self, index: &Entry, current_node_ref: u32, block_num_to_delete: Option<u32>) -> io::Result<(bool, Entry, IndexValue)>{
+        let current_node = self.get_node(current_node_ref)?;
+        if current_node.leaf {
+            //return Ok(current_node);
+        }
+        let mut found_index: usize = match current_node.entries.binary_search(index){
+            Ok(pos) => pos,
+            Err(pos) => pos,
+        };
+        if found_index == current_node.entries.len() {
+            found_index = found_index-1;
+        }
+        // Left side
+        let (should_rebalance, deleted_entry, new_median) = match index < &current_node.entries[found_index as usize]{
+            true => self.delete_helper(index, current_node.entries[found_index as usize].left_ref.unwrap(), block_num_to_delete)?,
+        // Right side
+            false => self.delete_helper(index, current_node.entries[found_index as usize].right_ref, block_num_to_delete)?
+        };
+        if should_rebalance {
+            if current_node.entries.len() == 1 {
+                self.storage_manager.delete_data(current_node_ref);
+                return Ok((true, deleted_entry, IndexValue::Integer(0)));
+            }
+            else{
+                // No need to re-assign left and right ref if removal was on right most node
+                if current_node.entries.len()-1 == found_index {
+                    if index < &current_node.entries[found_index as usize] {
+                        current_node.entries[found_index as usize -1].right_ref = current_node.entries[found_index as usize].right_ref;
+                        current_node.entries.remove(found_index);
+                    }
+                    else {
+                        current_node.entries.remove(found_index);
+                    }
+                }
+                else if found_index == 0 {
+                    if index < &current_node.entries[found_index as usize] {
+                        current_node.entries.remove(found_index);
+                    }
+                    else {
+                        current_node.entries[found_index as usize -1].right_ref = current_node.entries[found_index as usize].right_ref;
+                        current_node.entries.remove(found_index);
+                    }
+                }
+                else{
+                    current_node.entries[found_index+1 as usize].right_ref = current_node.entries[found_index-1 as usize].left_ref.unwrap();
+                    current_node.entries.remove(found_index);
+                }
+            }
+        }
+        self.storage_manager.delete_data(current_node_ref);
+        self.storage_manager.write_data(serde_json::to_vec(&current_node)?, Some(current_node_ref));
+        return Ok((false, deleted_entry, current_node.entries[(found_index as usize)/2].index));
     }
 
     fn search_helper(&mut self, index: &Entry, current_node_ref: u32) -> io::Result<Node>{
