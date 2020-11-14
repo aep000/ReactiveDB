@@ -18,8 +18,8 @@ pub enum TableConfig {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SourceTableConfig {
-    name: String,
-    columns: BTreeMap<String, DataType>
+    pub name: String,
+    pub columns: BTreeMap<String, DataType>
 
 }
 #[derive(Serialize, Deserialize, Debug)]
@@ -39,7 +39,7 @@ pub enum TransformType {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FunctionTransformConfig {
-    pub soure_table: String,
+    pub source_table: String,
     pub functions: Vec<String>
 }
 

@@ -18,7 +18,7 @@ pub enum Transform {
 
 
 impl Transform {
-    pub fn execute(self, transaction: BTreeMap<String, EntryValue>, table_name:String, db: Database) -> Option<BTreeMap<String, EntryValue>>{
+    pub fn execute(&self, transaction: BTreeMap<String, EntryValue>, table_name:&String, db: &Database) -> Option<BTreeMap<String, EntryValue>>{
         match self {
             Transform::Function(statments) => {
                 match Transform::function_transform(statments, transaction) {
@@ -43,7 +43,7 @@ impl Transform {
         }
     }
 
-    fn function_transform(statements: Vec<Statement>, transaction: BTreeMap<String, EntryValue>) -> std::result::Result<BTreeMap<String, EntryValue>, String> {
+    fn function_transform(statements: &Vec<Statement>, transaction: BTreeMap<String, EntryValue>) -> std::result::Result<BTreeMap<String, EntryValue>, String> {
         let mut map: BTreeMap<String, EntryValue> = BTreeMap::new();
         for statement in statements {
             let result = match statement {
@@ -51,14 +51,14 @@ impl Transform {
                 _ => None
             };
             let _ = match result {
-                Some((dest, res)) => map.insert(dest, res),
+                Some((dest, res)) => map.insert(dest.to_string(), res),
                 None => None
             };
         }
         return Ok(map);
     }
 
-    fn filter_transform(statement: Statement, transaction: BTreeMap<String, EntryValue>) -> std::result::Result<Option<BTreeMap<String, EntryValue>>, String>{
+    fn filter_transform(statement: &Statement, transaction: BTreeMap<String, EntryValue>) -> std::result::Result<Option<BTreeMap<String, EntryValue>>, String>{
         match statement {
             Statement::Comparison(expr) => {
                 let result = execute_expression(&transaction, expr)?;
@@ -76,13 +76,13 @@ impl Transform {
         }
     }
 
-    fn union_transform(table_foreign_key_pairs: Vec<(String, String)>, transaction: BTreeMap<String, EntryValue>, table_name: String, db: &mut Database) -> std::result::Result<BTreeMap<String, EntryValue>, String> {
+    fn union_transform(table_foreign_key_pairs: &Vec<(String, String)>, transaction: BTreeMap<String, EntryValue>, table_name: String, db: &mut Database) -> std::result::Result<BTreeMap<String, EntryValue>, String> {
         let dest_table  = db.tables.get_mut(&table_name);
         let mut foreign_key = "".to_string();
         // This is slow and should be solved
         for maybe_t in table_foreign_key_pairs {
-            if maybe_t.0 == table_name {
-                foreign_key = maybe_t.1;
+            if maybe_t.0.eq(&table_name) {
+                foreign_key = maybe_t.1.to_string();
                 break;
             }
         }
@@ -115,27 +115,27 @@ impl Transform {
     }
 }
 
-fn execute_expression(transaction: &BTreeMap<String, EntryValue>, expression: Expression) -> std::result::Result<EntryValue, String>{
+fn execute_expression(transaction: &BTreeMap<String, EntryValue>, expression: &Expression) -> std::result::Result<EntryValue, String>{
     return match expression {
         Expression::Operation(left, operation, right) => {
-            let resolved_left = resolve_expression_value(transaction, *left)?;
-            let resolved_right = resolve_expression_value(transaction, *right)?;
+            let resolved_left = resolve_expression_value(transaction, left)?;
+            let resolved_right = resolve_expression_value(transaction, right)?;
             return operation.evaluate(resolved_left, resolved_right);
         }
         _ => Err("Function expressions are currently unimplimented".to_string())
     };
 }
 
-fn resolve_expression_value(transaction: &BTreeMap<String, EntryValue>, value: ExpressionValue)-> std::result::Result<EntryValue, String>{
+fn resolve_expression_value(transaction: &BTreeMap<String, EntryValue>, value: &ExpressionValue)-> std::result::Result<EntryValue, String>{
     return match value {
-        ExpressionValue::Value(value) => Ok(value),
+        ExpressionValue::Value(value) => Ok(value.clone()),
         ExpressionValue::TableReference(reference) => {
-            match transaction.get(&reference) {
+            match transaction.get(reference) {
                 Some(value) => Ok(value.clone()),
                 None => Err(format!("Unable to find column matching: \"{}\"", reference))
             }
         },
-        ExpressionValue::SubExpression(exp) => execute_expression(transaction, exp)
+        ExpressionValue::SubExpression(exp) => execute_expression(transaction, &exp)
     }
     
 }

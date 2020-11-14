@@ -48,11 +48,13 @@ fn main() -> io::Result<()>{
 */
     //print!("{:?}",read_config_file("test_cfg.yaml".to_string()));
 
-    print!("{:?}\n", Statement::new_assignment("x <= functionCall(y1+512): something".to_string()));
-    let tfm = Transform::Function(vec![Statement::new_assignment("test1/2: something".to_string()).unwrap()]);
-    let mut some_transaction = BTreeMap::new();
-    some_transaction.insert("test1".to_string(), EntryValue::Integer(100));
-    print!("{:?}\n",tfm.execute(some_transaction, "Some stuff".to_string(), Database {tables: HashMap::new()}));
+    let config = read_config_file("test_cfg.yaml".to_string())?;
+    let mut db = Database::from_config(config).unwrap();
+    let mut entry_to_insert = BTreeMap::new();
+    entry_to_insert.insert("something".to_string(), EntryValue::Integer(2));
+    print!("{:?}\n", db.insert_entry(&"something".to_string(),entry_to_insert));
+
+    print!("{:?}\n", db.exact_search(&"something".to_string(), "something".to_string(), EntryValue::Integer(2)));
 
     return Ok(());
 }

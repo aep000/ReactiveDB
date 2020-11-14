@@ -102,7 +102,7 @@ impl Expression {
                     }
                 },
                 Tokens::Word(word) => {
-                    if i < tokens.len()-3 && parens == 0{
+                    if tokens.len() >= 3 && i < tokens.len()-3 && parens == 0{
                         if tokens[i+1] == Tokens::OpenParen {
                             let function_params_tokens = tokens[i+1..].to_vec();
                             let function_params_value = ExpressionValue::get_expression_value(function_params_tokens)?;
@@ -161,6 +161,8 @@ impl ExpressionValue {
 
 
 fn lex_expression(expression: &String) -> Vec<Tokens> {
+    let mut expression = expression.to_owned();
+    expression.push(' ');
     let mut tokens = vec![];
     let mut mode = LexingMode::Nothing;
     let mut token_buffer = String::new();
@@ -244,7 +246,7 @@ fn lex_expression(expression: &String) -> Vec<Tokens> {
             else if c == '*' || c == '/' || c == '+' || c == '-' || c == '^' {
                 tokens.push(Tokens::Operator(convert_char_to_operation(c)));
             }
-            else if  c == ':' {
+            else if  c == '~' {
                 tokens.push(Tokens::Assign);
             }
             else if c == '(' {

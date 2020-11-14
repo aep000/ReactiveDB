@@ -154,7 +154,7 @@ impl OperationOrComparison {
             _ => Err(())
         }
     }
-    pub fn evaluate(self, left:EntryValue, right:EntryValue) -> Result<EntryValue, String>{
+    pub fn evaluate(&self, left:EntryValue, right:EntryValue) -> Result<EntryValue, String>{
         match self {
             OperationOrComparison::Operation(op) => op.evaluate(left, right),
             OperationOrComparison::Comparison(cmp) => cmp.evaluate(left, right)

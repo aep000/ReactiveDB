@@ -1,10 +1,11 @@
 tables:
   - Derived:
-      source_table: something
+      name: derived
       transform_definition:
         FunctionTransform:
+          source_table: something
           functions:
-            - Pog
+            - newtable ~ something + 2
   - Source:
       name: something
       columns:

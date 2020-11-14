@@ -29,12 +29,12 @@ pub enum TableType {
     Derived(Transform)
 }
 
-
 pub struct Table {
-    name: String,
+    pub name: String,
     columns: HashMap<String, Column>,
-    table_type: TableType,
-    output_tables: Vec<String>,
+    pub table_type: TableType,
+    pub output_tables: Vec<String>,
+    pub input_tables: Vec<String>,
     indexes: Vec<BTree>,
     entry_storage_manager: StorageManager
 }
@@ -82,11 +82,12 @@ impl Table {
             columns: column_map,
             table_type: table_type,
             output_tables: vec![],
+            input_tables: vec![],
             indexes: indexes,
             entry_storage_manager: entry_storage_manager
         });
     }
-    pub fn insert(&mut self, entry: BTreeMap<String, EntryValue>, db: Database) -> io::Result<()>{
+    pub fn insert(&mut self, entry: BTreeMap<String, EntryValue>) -> io::Result<Option<BTreeMap<String, EntryValue>>>{
         self.entry_storage_manager.start_write_session()?;
         let reserved_root = self.entry_storage_manager.allocate_block();
         for (name, val) in &entry{
@@ -97,19 +98,27 @@ impl Table {
                     }
                 }
                 None=> {
-                    return match self.table_type {
+                    match self.table_type {
                         TableType::Derived(_) => {
                             let new_column = Column::new(name.to_string(), get_data_type_of_entry(val));
-                            return self.create_new_index(new_column);
+                            self.create_new_index(new_column)?;
+                            match self.columns.get(name){
+                                Some(column) => {
+                                    if column.indexed{
+                                        self.indexes[column.index_loc].insert(val.to_index_value()?, reserved_root)?;
+                                    }
+                                }
+                                _ => {}
+                            }
                         }
-                        _ => Err(create_custom_io_error("Missmatched Input"))
+                        _ => Err(create_custom_io_error("Missmatched Input"))?
                     }
                 }
             };
         }
         self.entry_storage_manager.write_data(serde_json::to_vec(&entry)?, Some(reserved_root))?;
         self.entry_storage_manager.end_session();
-        Ok(())
+        Ok(Some(entry))
     }
 
     pub fn exact_get(&mut self, search_column_name: String, value: &EntryValue) -> io::Result<Option<BTreeMap<String, EntryValue>>>{
