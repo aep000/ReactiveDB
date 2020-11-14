@@ -109,6 +109,28 @@ impl Database {
         return Ok(());
     }
 
+    pub fn less_than_search(&mut self, table: &String, column: String, key: EntryValue) -> Result<Vec<BTreeMap<String, EntryValue>>, String>{
+        let mut table_obj = match self.tables.get_mut(table){
+            Some(t) => t,
+            None => Err(format!("Unable to find table {}", table))?
+        };
+        match table_obj.less_than(column, key, false) {
+            Ok(r) => Ok(r),
+            Err(e) => Err(format!("Error when searching for entry {}", e))
+        }
+    }
+
+    pub fn greater_than_search(&mut self, table: &String, column: String, key: EntryValue) -> Result<Vec<BTreeMap<String, EntryValue>>, String>{
+        let mut table_obj = match self.tables.get_mut(table){
+            Some(t) => t,
+            None => Err(format!("Unable to find table {}", table))?
+        };
+        match table_obj.greater_than(column, key) {
+            Ok(r) => Ok(r),
+            Err(e) => Err(format!("Error when searching for entry {}", e))
+        }
+    }
+
     fn get_all_next_inserts(& self, table: &String) -> Vec<String> {
         match self.tables.get(table) {
             Some(t) => t.output_tables.clone(),
