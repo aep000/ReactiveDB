@@ -54,7 +54,7 @@ fn main() -> io::Result<()>{
     entry_to_insert.insert("something".to_string(), EntryValue::Integer(2));
     print!("{:?}\n", db.insert_entry(&"something".to_string(),entry_to_insert));
 
-    print!("{:?}\n", db.exact_search(&"something".to_string(), "something".to_string(), EntryValue::Integer(2)));
+    print!("{:?}\n", db.exact_search(&"derived".to_string(), "newtable".to_string(), EntryValue::Integer(4)));
 
     return Ok(());
 }

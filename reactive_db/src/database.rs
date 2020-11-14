@@ -153,9 +153,12 @@ fn parse_transform_config(config: TransformTableConfig) -> Result<Table, String>
         }
         _ => Err("Unsupported derived table".to_string())?
     };
-    let table = Table::new(name, columns, TableType::Derived(transform));
+    let mut table = Table::new(name, columns, TableType::Derived(transform));
     match table {
-        Ok(t) => Ok(t),
+        Ok(mut t) => {
+            t.input_tables = input_tables;
+            Ok(t)
+        },
         Err(e) => Err(format!("{:?}", e))
     }
 }
