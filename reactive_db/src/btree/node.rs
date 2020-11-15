@@ -9,20 +9,16 @@ pub struct Node {
     pub leaf: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, )]
 pub struct Entry {
     pub index: IndexValue,
-    pub left_ref: Option<u32>,
     pub right_ref: u32,
+    pub left_ref: Option<u32>,
 }
 
 impl Ord for Entry {
     fn cmp(&self, other: &Entry) -> Ordering {
-        let results = self.index.cmp(&other.index);
-        match results {
-            Ordering::Equal => self.right_ref.cmp(&other.right_ref),
-            _ => results,
-        }
+        return self.index.cmp(&other.index);
     }
 }
 
