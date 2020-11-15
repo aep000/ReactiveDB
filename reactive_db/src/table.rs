@@ -123,11 +123,7 @@ impl Table {
         Ok(Some(entry))
     }
 
-    pub fn delete(
-        &mut self,
-        search_column_name: String,
-        value: &EntryValue,
-    ) -> io::Result<()> {
+    pub fn delete(&mut self, search_column_name: String, value: &EntryValue) -> io::Result<()> {
         let search_column = match self.columns.get(&search_column_name) {
             Some(c) => Ok(c),
             None => Err(create_custom_io_error(
@@ -139,30 +135,33 @@ impl Table {
                 format!("No such column {} exists", search_column_name).as_str(),
             ));
         }
-        let location_refs = self.indexes[search_column.index_loc].delete(value.to_index_value()?, None, true)?;
+        let location_refs =
+            self.indexes[search_column.index_loc].delete(value.to_index_value()?, None, true)?;
         for loc in location_refs {
             self.entry_storage_manager.start_write_session()?;
-            let raw_entry = self
-                .entry_storage_manager
-                .read_data(loc)?;
+            let raw_entry = self.entry_storage_manager.read_data(loc)?;
             self.entry_storage_manager.delete_data(loc)?;
             self.entry_storage_manager.end_session();
             let entry: Result<BTreeMap<String, EntryValue>> =
                 serde_json::from_slice(raw_entry.as_slice());
             match entry {
-                        Ok(entry) => {
+                Ok(entry) => {
                     for (column_name, itered_column) in self.columns.iter() {
                         if itered_column.indexed {
                             match entry.get(column_name) {
-                                Some(value) => self.indexes[itered_column.index_loc].delete(value.to_index_value()?, Some(loc), false)?,
-                                _ => vec![]
+                                Some(value) => self.indexes[itered_column.index_loc].delete(
+                                    value.to_index_value()?,
+                                    Some(loc),
+                                    false,
+                                )?,
+                                _ => vec![],
                             };
                         }
                     }
-                },
-                Err(e) => Err(io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?
+                }
+                Err(e) => Err(io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?,
             }
-        };
+        }
         Ok(())
     }
 

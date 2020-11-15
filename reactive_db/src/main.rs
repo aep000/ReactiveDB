@@ -62,7 +62,11 @@ fn main() -> io::Result<()> {
 
     print!(
         "{:?}\n",
-        db.delete_all(&"testTable".to_string(),"testForIndex".to_string(), EntryValue::Integer(3))
+        db.delete_all(
+            &"testTable".to_string(),
+            "testForIndex".to_string(),
+            EntryValue::Integer(3)
+        )
     );
 
     print!(

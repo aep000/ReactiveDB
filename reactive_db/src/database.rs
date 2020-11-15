@@ -1,9 +1,7 @@
 use crate::config_reader::{DbConfig, TableConfig, TransformTableConfig, TransformType};
-use crate::parser::ExpressionValue;
 use crate::transform::Transform;
 use crate::Column;
 use crate::EntryValue;
-use crate::Expression;
 use crate::Statement;
 use crate::Table;
 use crate::TableType;
@@ -36,7 +34,6 @@ impl Database {
                     let table = parse_transform_config(config)?;
                     tables.insert(table.name.clone(), table);
                 }
-                _ => {}
             }
         }
         let mut input_refs = vec![];
@@ -61,7 +58,7 @@ impl Database {
         column: String,
         key: EntryValue,
     ) -> Result<Option<BTreeMap<String, EntryValue>>, String> {
-        let mut table_obj = match self.tables.get_mut(table) {
+        let table_obj = match self.tables.get_mut(table) {
             Some(t) => t,
             None => Err(format!("Unable to find table {}", table))?,
         };
@@ -77,7 +74,7 @@ impl Database {
         column: String,
         key: EntryValue,
     ) -> Result<(), String> {
-        let mut table_obj = match self.tables.get_mut(table) {
+        let table_obj = match self.tables.get_mut(table) {
             Some(t) => t,
             None => Err(format!("Unable to find table {}", table))?,
         };
@@ -133,7 +130,7 @@ impl Database {
         column: String,
         key: EntryValue,
     ) -> Result<Vec<BTreeMap<String, EntryValue>>, String> {
-        let mut table_obj = match self.tables.get_mut(table) {
+        let table_obj = match self.tables.get_mut(table) {
             Some(t) => t,
             None => Err(format!("Unable to find table {}", table))?,
         };
@@ -149,7 +146,7 @@ impl Database {
         column: String,
         key: EntryValue,
     ) -> Result<Vec<BTreeMap<String, EntryValue>>, String> {
-        let mut table_obj = match self.tables.get_mut(table) {
+        let table_obj = match self.tables.get_mut(table) {
             Some(t) => t,
             None => Err(format!("Unable to find table {}", table))?,
         };
@@ -196,14 +193,14 @@ fn parse_transform_config(config: TransformTableConfig) -> Result<Table, String>
             Transform::Filter(statement)
         }
         TransformType::UnionTransform(config) => {
-            for (table, key) in config.tables_and_foreign_keys.iter() {
+            for (table, _) in config.tables_and_foreign_keys.iter() {
                 input_tables.push(table.clone());
             }
             Transform::Union(config.tables_and_foreign_keys)
         }
         _ => Err("Unsupported derived table".to_string())?,
     };
-    let mut table = Table::new(name, columns, TableType::Derived(transform));
+    let table = Table::new(name, columns, TableType::Derived(transform));
     match table {
         Ok(mut t) => {
             t.input_tables = input_tables;

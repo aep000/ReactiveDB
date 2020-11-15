@@ -21,7 +21,7 @@ impl Ord for Entry {
         let results = self.index.cmp(&other.index);
         match results {
             Ordering::Equal => self.right_ref.cmp(&other.right_ref),
-            _ => results
+            _ => results,
         }
     }
 }
