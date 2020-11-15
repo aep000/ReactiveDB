@@ -18,7 +18,11 @@ pub struct Entry {
 
 impl Ord for Entry {
     fn cmp(&self, other: &Entry) -> Ordering {
-        return self.index.cmp(&other.index);
+        let results = self.index.cmp(&other.index);
+        match results {
+            Ordering::Equal => self.right_ref.cmp(&other.right_ref),
+            _ => results
+        }
     }
 }
 
@@ -26,7 +30,7 @@ impl Eq for Entry {}
 
 impl PartialEq for Entry {
     fn eq(&self, other: &Entry) -> bool {
-        self.cmp(other) == Ordering::Equal
+        self.index.cmp(&other.index) == Ordering::Equal
     }
 }
 

@@ -55,7 +55,7 @@ impl Database {
         return Ok(Database { tables: tables });
     }
 
-    pub fn exact_search(
+    pub fn find_one(
         &mut self,
         table: &String,
         column: String,
@@ -68,6 +68,22 @@ impl Database {
         match table_obj.exact_get(column, &key) {
             Ok(r) => Ok(r),
             Err(e) => Err(format!("Error when searching for entry {}", e)),
+        }
+    }
+
+    pub fn delete_all(
+        &mut self,
+        table: &String,
+        column: String,
+        key: EntryValue,
+    ) -> Result<(), String> {
+        let mut table_obj = match self.tables.get_mut(table) {
+            Some(t) => t,
+            None => Err(format!("Unable to find table {}", table))?,
+        };
+        match table_obj.delete(column, &key) {
+            Ok(()) => Ok(()),
+            Err(e) => Err(format!("Error when deleting for entries {}", e)),
         }
     }
 

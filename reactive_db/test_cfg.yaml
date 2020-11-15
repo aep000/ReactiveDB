@@ -3,12 +3,13 @@ tables:
       name: derived
       transform_definition:
         FunctionTransform:
-          source_table: something
+          source_table: testTable
           functions:
-            - newtable ~ something + 2
+            - newColumn ~ testForIteration + 2
   - Source:
-      name: something
+      name: testTable
       columns:
-        something: Integer
+        testForIndex: Integer
+        testForIteration: Integer
 
 storage_destination: db/random/

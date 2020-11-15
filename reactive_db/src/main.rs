@@ -49,19 +49,28 @@ fn main() -> io::Result<()> {
 
     let config = read_config_file("test_cfg.yaml".to_string())?;
     let mut db = Database::from_config(config).unwrap();
-    let mut entry_to_insert = BTreeMap::new();
-    entry_to_insert.insert("something".to_string(), EntryValue::Integer(2));
+    let arr = vec![0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4];
+    for n in arr {
+        let mut entry_to_insert = EntryBuilder::new();
+        entry_to_insert.column("testForIteration", EntryValue::Integer(n));
+        entry_to_insert.column("testForIndex", EntryValue::Integer(n));
+        print!(
+            "{:?}\n",
+            db.insert_entry(&"testTable".to_string(), entry_to_insert.build())
+        );
+    }
+
     print!(
         "{:?}\n",
-        db.insert_entry(&"something".to_string(), entry_to_insert)
+        db.delete_all(&"testTable".to_string(),"testForIndex".to_string(), EntryValue::Integer(3))
     );
 
     print!(
         "{:?}\n",
-        db.greater_than_search(
-            &"derived".to_string(),
-            "newtable".to_string(),
-            EntryValue::Integer(0)
+        db.find_one(
+            &"testTable".to_string(),
+            "testForIndex".to_string(),
+            EntryValue::Integer(3)
         )
     );
 

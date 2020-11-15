@@ -36,6 +36,34 @@ impl BTree {
         });
     }
 
+    pub fn delete(&mut self, index: IndexValue, reference: Option<u32>, delete_all_nodes: bool)-> io::Result<Vec<u32>>{
+        self.storage_manager.start_write_session()?;
+        let entry = Entry {
+            index: index,
+            left_ref:None,
+            right_ref: match reference {
+                Some(r) => r,
+                None => 0
+            }
+        };
+        let (should_rebalance, deleted_entry, new_index) = self.delete_helper(&entry, 1, entry.right_ref != 0)?;
+        let mut deleted = deleted_entry;
+        let mut deleted_indexes = vec![];
+        while delete_all_nodes && deleted != None {
+            deleted_indexes.push(deleted.unwrap().right_ref);
+            let (should_rebalance, deleted_entry, new_index) = match self.delete_helper(&entry, 1, entry.right_ref != 0) {
+                Ok(t) => t,
+                _ => {
+                    self.storage_manager.end_session();
+                    return Ok(deleted_indexes);
+                }
+            };
+            deleted = deleted_entry;
+        }
+        self.storage_manager.end_session();
+        Ok(deleted_indexes)
+    }
+
     pub fn insert(&mut self, index: IndexValue, reference:u32) -> io::Result<()>{
         self.storage_manager.start_write_session()?;
         let entry = Entry {
@@ -71,10 +99,10 @@ impl BTree {
         return Ok(());
     }
 
-    pub fn delete(&mut self, index: IndexValue, reference:u32) -> io::Result<Option<Entry>>{
+    /*pub fn delete(&mut self, index: IndexValue, reference:u32) -> io::Result<Option<Entry>>{
         self.storage_manager.start_write_session()?;
 
-    }
+    }*/
 
     // Searches for exact values and never 
     pub fn search_exact(&mut self, index: IndexValue) ->  io::Result<Option<Entry>>{
@@ -86,10 +114,10 @@ impl BTree {
         };
         let found_node = self.search_helper(&dummy_entry, 1)?;
         self.storage_manager.end_session();
-        return match found_node.entries.binary_search(&dummy_entry){
-            Ok(pos) => Ok(Some(found_node.entries[pos].clone())),
-            Err(_) => Ok(None)
-        };
+        return match self.find_entry_in_node(&found_node, &dummy_entry, false) {
+            Some((entry, loc)) => Ok(Some(entry)),
+            None => Ok(None)
+        }
     }
 
     pub fn greater_than(&mut self, index: IndexValue) -> io::Result<Vec<Entry>> {
@@ -294,10 +322,27 @@ impl BTree {
         }
     }
     // THIS IS VERY BROKEN DO NOT USE THIS YET
-    fn delete_helper(&mut self, index: &Entry, current_node_ref: u32, block_num_to_delete: Option<u32>) -> io::Result<(bool, Entry, IndexValue)>{
-        let current_node = self.get_node(current_node_ref)?;
+    
+    fn delete_helper(&mut self, index: &Entry, current_node_ref: u32, block_num_match: bool) -> io::Result<(bool, Option<Entry>, IndexValue)>{
+        let mut current_node = self.get_node(current_node_ref)?;
         if current_node.leaf {
-            //return Ok(current_node);
+            let found_entry = self.find_entry_in_node(&current_node, index, block_num_match);
+            let deleted = match found_entry {
+                Some((entry, loc)) => {
+                    current_node.entries.remove(loc);
+                    Some(entry)
+                }
+                None => None
+            };
+            if deleted != None && current_node.entries.len() == 0 {
+                self.storage_manager.delete_data(current_node_ref)?;
+                return Ok((true, deleted, IndexValue::Integer(0)));
+            }
+            else if deleted != None {
+                self.storage_manager.delete_data(current_node_ref)?;
+                self.storage_manager.write_data(serde_json::to_vec(&current_node)?, Some(current_node_ref))?;
+            }
+            return Ok((true, deleted, current_node.entries[0].index.clone()));
         }
         let mut found_index: usize = match current_node.entries.binary_search(index){
             Ok(pos) => pos,
@@ -307,14 +352,18 @@ impl BTree {
             found_index = found_index-1;
         }
         // Left side
-        let (should_rebalance, deleted_entry, new_median) = match index < &current_node.entries[found_index as usize]{
-            true => self.delete_helper(index, current_node.entries[found_index as usize].left_ref.unwrap(), block_num_to_delete)?,
+        let (should_rebalance, deleted_entry, new_index) = match index < &current_node.entries[found_index as usize]{
+            true => self.delete_helper(index, current_node.entries[found_index as usize].left_ref.unwrap(), block_num_match)?,
         // Right side
-            false => self.delete_helper(index, current_node.entries[found_index as usize].right_ref, block_num_to_delete)?
+            false => self.delete_helper(index, current_node.entries[found_index as usize].right_ref, block_num_match)?
         };
+        if deleted_entry == None {
+            return Ok((should_rebalance, deleted_entry, new_index));
+        }
+        current_node.entries[found_index].index = new_index;
         if should_rebalance {
             if current_node.entries.len() == 1 {
-                self.storage_manager.delete_data(current_node_ref);
+                self.storage_manager.delete_data(current_node_ref)?;
                 return Ok((true, deleted_entry, IndexValue::Integer(0)));
             }
             else{
@@ -343,9 +392,9 @@ impl BTree {
                 }
             }
         }
-        self.storage_manager.delete_data(current_node_ref);
-        self.storage_manager.write_data(serde_json::to_vec(&current_node)?, Some(current_node_ref));
-        return Ok((false, deleted_entry, current_node.entries[(found_index as usize)/2].index));
+        self.storage_manager.delete_data(current_node_ref)?;
+        self.storage_manager.write_data(serde_json::to_vec(&current_node)?, Some(current_node_ref))?;
+        return Ok((false, deleted_entry, current_node.entries[0].index.clone()));
     }
 
     fn search_helper(&mut self, index: &Entry, current_node_ref: u32) -> io::Result<Node>{
@@ -374,6 +423,23 @@ impl BTree {
             Ok(node) => Ok(node),
             Err(error) =>  Err(Error::new(ErrorKind::Other, "Error Decoding Node"))
         };
+    }
+
+    fn find_entry_in_node(&mut self, node: &Node, entry: &Entry, match_reference: bool) -> Option<(Entry, usize)> {
+        match node.entries.binary_search(&entry){
+            Ok(pos) => Some((node.entries[pos].clone(), pos)),
+            Err(pos) => {
+                if pos < node.entries.len(){
+                    if node.entries[pos].index == entry.index && !match_reference {
+                        return Some((node.entries[pos].clone(), pos));
+                    }
+                    None
+                }
+                else{
+                    None
+                }
+            }
+        }
     }
 }
 
