@@ -18,7 +18,7 @@ use crate::storage_manager::StorageManager;
 use crate::table::{Column, Table, TableType};
 use crate::transform::Transform;
 use crate::types::{DataType, EntryValue};
-use rand::distributions::Uniform;
+use rand::Rng;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::io;
@@ -50,13 +50,17 @@ fn main() -> io::Result<()> {
 
     let config = read_config_file("test_cfg.yaml".to_string())?;
     let mut db = Database::from_config(config).unwrap();
-    let arr = vec![0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4,0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4,0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4];
+    let arr = vec![0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,];
+    let mut rng = rand::thread_rng();
     for n in arr {
         let mut entry_to_insert = EntryBuilder::new();
+        let i = rng.gen_range(0.0, 10.0) as isize;
         entry_to_insert.column("testForIteration", EntryValue::Integer(n));
-        entry_to_insert.column("testForIndex", EntryValue::Integer(n));
+        entry_to_insert.column("testForIndex", EntryValue::Integer(i));
         print!(
-            "{:?}\n",
+            "{}, {}: {:?}\n",
+            n,
+            i,
             db.insert_entry(&"testTable".to_string(), entry_to_insert.build())
         );
     }
@@ -67,7 +71,7 @@ fn main() -> io::Result<()> {
         db.delete_all(
             &"testTable".to_string(),
             "testForIndex".to_string(),
-            EntryValue::Integer(3)
+            EntryValue::Integer(8)
         )
     );
 
@@ -76,7 +80,7 @@ fn main() -> io::Result<()> {
         db.greater_than_search(
             &"testTable".to_string(),
             "testForIndex".to_string(),
-            EntryValue::Integer(0)
+            EntryValue::Integer(7)
         )
     );
 

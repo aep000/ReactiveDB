@@ -334,7 +334,6 @@ impl BTree {
             };
         }
     }
-    // THIS IS VERY BROKEN DO NOT USE THIS YET
 
     fn delete_helper(
         &mut self,
@@ -467,6 +466,19 @@ impl BTree {
                 if pos < node.entries.len() {
                     if node.entries[pos].index == entry.index && !match_reference {
                         return Some((node.entries[pos].clone(), pos));
+                    }
+                    else if node.entries[pos].index == entry.index && match_reference {
+                        let mut current_pos = pos;
+                        while node.entries[current_pos].index == entry.index && current_pos < node.entries.len(){
+                            if node.entries[current_pos].right_ref == entry.right_ref {
+                                return Some((node.entries[pos].clone(), pos));
+                            }
+                            current_pos+=1;
+                        }
+                        if current_pos < node.entries.len() &&  node.next_node != 0{
+                            let next_node = self.get_node(node.next_node).unwrap();
+                            return self.find_entry_in_node(&next_node,entry,true,)
+                        }
                     }
                     None
                 } else {
