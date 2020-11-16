@@ -121,7 +121,7 @@ impl BTree {
         let found_node = self.search_helper(&dummy_entry, 1)?;
         self.storage_manager.end_session();
         return match self.find_entry_in_node(&found_node, &dummy_entry, false) {
-            Some((entry, loc)) => Ok(Some(entry)),
+            Some((entry, _)) => Ok(Some(entry)),
             None => Ok(None),
         };
     }

@@ -128,6 +128,9 @@ impl StorageManager {
         let mut output = vec![];
         while block_to_read != 0 {
             let raw_block = self.read_block(block_to_read as u32)?;
+            if raw_block.len() <= DATA_BLOCK_SIZE as usize {
+                Err(Error::new(ErrorKind::Other, "Error datablock too small"))?;
+            }
             let data_block = &raw_block[..DATA_BLOCK_SIZE as usize].to_vec();
             let next_block_raw = raw_block[(DATA_BLOCK_SIZE) as usize..].to_vec();
             block_to_read = Cursor::new(next_block_raw).read_u32::<BigEndian>().unwrap() as usize;

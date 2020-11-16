@@ -1,3 +1,4 @@
+use crate::constants::{ROW_ID_COLUMN_NAME, BTREE_NODE_SIZE};
 use crate::database::Database;
 use crate::transform::Transform;
 use crate::types::create_custom_io_error;
@@ -5,13 +6,11 @@ use crate::types::DataType;
 use crate::types::EntryValue;
 use crate::BTree;
 use crate::StorageManager;
-use regex::Regex;
 use serde_json::Result;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::{fs, io};
-
-const BTREE_NODE_SIZE: u32 = 20;
+use uuid::Uuid;
 
 #[derive(Clone, Ord, Eq, PartialOrd, PartialEq)]
 pub struct Column {
@@ -53,50 +52,47 @@ impl Table {
         let mut entry_storage_manager = StorageManager::new(format!("db/{}.db", table_name))?;
         let mut indexes = vec![];
         let mut column_map = HashMap::new();
-        match table_type {
-            TableType::Source => {
-                for column in &columns {
-                    let mut column = column.clone();
-                    if column.data_type.is_indexible() {
-                        let file_name = format!("db/{}_{}.index", table_name, column.name);
-                        let storage_manager = StorageManager::new(file_name)?;
-                        column.indexed = true;
-                        column.index_loc = indexes.len();
-                        indexes.push(BTree::new(BTREE_NODE_SIZE, storage_manager)?);
-                    }
-                    column_map.insert(column.name.clone(), column);
-                }
+        for column in &columns {
+            let mut column = column.clone();
+            if column.data_type.is_indexible() {
+                let file_name = format!("db/{}_{}.index", table_name, column.name);
+                let storage_manager = StorageManager::new(file_name)?;
+                column.indexed = true;
+                column.index_loc = indexes.len();
+                indexes.push(BTree::new(BTREE_NODE_SIZE, storage_manager)?);
             }
+            column_map.insert(column.name.clone(), column);
+        }
+        match table_type {
             TableType::Derived(_) => {
                 entry_storage_manager.start_read_session()?;
-                let raw_entry = entry_storage_manager
-                    .read_data(3)?;
-                entry_storage_manager.end_session();
-                let entry: Result<BTreeMap<String, EntryValue>> =
-                    serde_json::from_slice(raw_entry.as_slice());
-                match entry {
-                    Ok(entry_unwrapped) => {
-                        for (column_name, value) in entry_unwrapped {
-                            let data_type = get_data_type_of_entry(&value);
-                            let mut column = Column::new(column_name.clone(), data_type);
-                            if column.data_type.is_indexible() {
-                                let file_name = format!("db/{}_{}.index", table_name, column.name);
-                                let storage_manager = StorageManager::new(file_name)?;
-                                column.indexed = true;
-                                column.index_loc = indexes.len();
-                                indexes.push(BTree::new(BTREE_NODE_SIZE, storage_manager)?);
+                match entry_storage_manager.read_data(3) {
+                    Ok(raw_entry) => {
+                        entry_storage_manager.end_session();
+                        let entry: Result<BTreeMap<String, EntryValue>> =
+                            serde_json::from_slice(raw_entry.as_slice());
+                        match entry {
+                            Ok(entry_unwrapped) => {
+                                for (column_name, value) in entry_unwrapped {
+                                    let data_type = get_data_type_of_entry(&value);
+                                    let mut column = Column::new(column_name.clone(), data_type);
+                                    if column.data_type.is_indexible() {
+                                        let file_name = format!("db/{}_{}.index", table_name, column.name);
+                                        let storage_manager = StorageManager::new(file_name)?;
+                                        column.indexed = true;
+                                        column.index_loc = indexes.len();
+                                        indexes.push(BTree::new(BTREE_NODE_SIZE, storage_manager)?);
+                                    }
+                                    column_map.insert(column.name.clone(), column);
+                                }
                             }
-                            column_map.insert(column.name.clone(), column);
+                            _ => {}
                         }
-                    }
-                    _ => {}
+                    },
+                    Err(_) => {}
                 }
-                // TODO Fix derived table columns so you can read without inserting on restart
-                /*for dir_entry in fs::read_dir("db/")? {
-                    let path = dir_entry?.path();
-                    let re = Regex::new(format!("{}_.*.index", name)).unwrap();
-                }*/
-            }
+            },
+            _ => {}
         }
         return Ok(Table {
             name: table_name,
@@ -110,8 +106,9 @@ impl Table {
     }
     pub fn insert(
         &mut self,
-        entry: BTreeMap<String, EntryValue>,
+        mut entry: BTreeMap<String, EntryValue>,
     ) -> io::Result<Option<BTreeMap<String, EntryValue>>> {
+        entry.insert(ROW_ID_COLUMN_NAME.to_string(), EntryValue::ID(Uuid::new_v4()));
         self.entry_storage_manager.start_write_session()?;
         let reserved_root = self.entry_storage_manager.allocate_block();
         for (name, val) in &entry {
@@ -188,7 +185,7 @@ impl Table {
         Ok(())
     }
 
-    pub fn exact_get(
+    pub fn find_one(
         &mut self,
         search_column_name: String,
         value: &EntryValue,
@@ -321,6 +318,7 @@ fn get_data_type_of_entry(entry: &EntryValue) -> DataType {
                 output.push((key.clone(), get_data_type_of_entry(v)))
             }
             return DataType::Map(output);
-        }
+        },
+        EntryValue::ID(_) => DataType::ID
     };
 }

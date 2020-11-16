@@ -1,3 +1,5 @@
+use crate::constants::ROW_ID_COLUMN_NAME;
+use uuid::Uuid;
 use crate::config_reader::{DbConfig, TableConfig, TransformTableConfig, TransformType};
 use crate::transform::Transform;
 use crate::Column;
@@ -5,6 +7,7 @@ use crate::EntryValue;
 use crate::Statement;
 use crate::Table;
 use crate::TableType;
+use crate::DataType;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 
@@ -23,6 +26,7 @@ impl Database {
                     for (name, data_type) in source_config.columns {
                         columns.push(Column::new(name, data_type))
                     }
+                    columns.push(Column::new("_entryId".to_string(), DataType::ID));
                     let new_table = match Table::new(name.clone(), columns, TableType::Source) {
                         Ok(t) => Ok(t),
                         Err(e) => Err(format!("{:?}", e)),
@@ -61,7 +65,7 @@ impl Database {
             Some(t) => t,
             None => Err(format!("Unable to find table {}", table))?,
         };
-        match table_obj.exact_get(column, &key) {
+        match table_obj.find_one(column, &key) {
             Ok(r) => Ok(r),
             Err(e) => Err(format!("Error when searching for entry {}", e)),
         }
@@ -87,8 +91,9 @@ impl Database {
     pub fn insert_entry<'a>(
         &mut self,
         table: &String,
-        entry: BTreeMap<String, EntryValue>,
+        mut entry: BTreeMap<String, EntryValue>,
     ) -> Result<(), String> {
+        entry.insert(ROW_ID_COLUMN_NAME.to_string(), EntryValue::ID(Uuid::new_v4()));
         let output_tables = self.get_all_next_inserts(table);
         let transform = self.get_table_transform(table);
         let entry = match transform {
@@ -112,7 +117,7 @@ impl Database {
                             }
                             None => (),
                         },
-                        Err(e) => Err(format!("Error when searching for entry {}", e))?,
+                        Err(e) => Err(format!("Error when inserting entry {}", e))?,
                     },
                     None => (),
                 };
@@ -175,10 +180,12 @@ impl Database {
 
 fn parse_transform_config(config: TransformTableConfig) -> Result<Table, String> {
     let name = config.name;
-    let columns = vec![];
+    let mut columns = vec![];
+    columns.push(Column::new("_entryId".to_string(), DataType::ID));
     let mut input_tables = vec![];
     let transform = match config.transform_definition {
         TransformType::FunctionTransform(config) => {
+            columns.push(Column::new("_sourceEntryId".to_string(), DataType::ID));
             let mut statements = vec![];
             input_tables.push(config.source_table);
             for raw_statement in config.functions {
@@ -187,6 +194,7 @@ fn parse_transform_config(config: TransformTableConfig) -> Result<Table, String>
             Transform::Function(statements)
         }
         TransformType::FilterTransform(config) => {
+            columns.push(Column::new("_sourceEntryId".to_string(), DataType::ID));
             let statement = Statement::new_comparison(config.filter)?;
             input_tables.push(config.soure_table);
             Transform::Filter(statement)

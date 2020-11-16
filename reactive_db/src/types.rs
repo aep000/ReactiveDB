@@ -5,12 +5,14 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::io;
 use std::io::{Error, ErrorKind};
+use uuid::Uuid;
 
 #[derive(Clone, Ord, Eq, PartialOrd, PartialEq, Serialize, Deserialize, Debug)]
 pub enum DataType {
     Integer,
     Array(Box<DataType>),
     Map(Vec<(String, DataType)>),
+    ID,
     Float,
     Str,
     Bool,
@@ -24,6 +26,7 @@ pub enum EntryValue {
     //Float(f64),
     Str(String),
     Bool(bool),
+    ID(Uuid)
 }
 
 impl DataType {
@@ -35,6 +38,7 @@ impl DataType {
             DataType::Float => false,
             DataType::Str => true,
             DataType::Bool => true,
+            DataType::ID => true,
         }
     }
 }
@@ -51,6 +55,7 @@ impl EntryValue {
                 Ok(IndexValue::Array(output))
             }
             EntryValue::Str(v) => Ok(IndexValue::String(v.clone())),
+            EntryValue::ID(v) => Ok(IndexValue::ID(v.clone())),
             others => Err(create_custom_io_error(
                 format!("Error Converting {:?} to IndexValue", others).as_str(),
             )),

@@ -6,6 +6,7 @@ mod storage_manager;
 mod table;
 mod transform;
 mod types;
+mod constants;
 
 use crate::btree::btree::BTree;
 use crate::btree::node::IndexValue;
@@ -50,14 +51,14 @@ fn main() -> io::Result<()> {
     let config = read_config_file("test_cfg.yaml".to_string())?;
     let mut db = Database::from_config(config).unwrap();
     let arr = vec![0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4,0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4,0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4];
-    /*for n in arr {
+    for n in arr {
         let mut entry_to_insert = EntryBuilder::new();
         entry_to_insert.column("testForIteration", EntryValue::Integer(n));
         entry_to_insert.column("testForIndex", EntryValue::Integer(n));
-        //print!(
-        //    "{:?}\n",
-            db.insert_entry(&"testTable".to_string(), entry_to_insert.build());
-        //);
+        print!(
+            "{:?}\n",
+            db.insert_entry(&"testTable".to_string(), entry_to_insert.build())
+        );
     }
     
     
@@ -66,15 +67,15 @@ fn main() -> io::Result<()> {
         db.delete_all(
             &"testTable".to_string(),
             "testForIndex".to_string(),
-            EntryValue::Integer(4)
+            EntryValue::Integer(3)
         )
-    );*/
+    );
 
     print!(
         "{:?}\n",
         db.greater_than_search(
-            &"derived".to_string(),
-            "newColumn".to_string(),
+            &"testTable".to_string(),
+            "testForIndex".to_string(),
             EntryValue::Integer(0)
         )
     );

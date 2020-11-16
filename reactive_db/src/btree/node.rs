@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt;
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Node {
@@ -42,6 +43,7 @@ pub enum IndexValue {
     Integer(isize),
     String(String),
     Array(Vec<IndexValue>),
+    ID(Uuid)
 }
 
 impl fmt::Debug for IndexValue {
@@ -54,7 +56,8 @@ impl fmt::Debug for IndexValue {
                 formatter.write_str("Array(")?;
                 fmt::Debug::fmt(v, formatter)?;
                 formatter.write_str(")")
-            }
+            },
+            IndexValue::ID(ref id) => fmt::Debug::fmt(id, formatter)
         }
     }
 }

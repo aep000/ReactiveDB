@@ -1,3 +1,5 @@
+use crate::constants::SOURCE_ENTRY_ID;
+use crate::constants::ROW_ID_COLUMN_NAME;
 use crate::database::Database;
 use crate::parser::ExpressionValue;
 use crate::parser::Statement;
@@ -52,6 +54,8 @@ impl Transform {
         transaction: BTreeMap<String, EntryValue>,
     ) -> std::result::Result<BTreeMap<String, EntryValue>, String> {
         let mut map: BTreeMap<String, EntryValue> = BTreeMap::new();
+        let source_uuid = transaction.get(&ROW_ID_COLUMN_NAME.to_string()).unwrap();
+        map.insert(SOURCE_ENTRY_ID.to_string(), source_uuid.clone());
         for statement in statements {
             let result = match statement {
                 Statement::Assignment(dest, expr) => {
@@ -69,7 +73,7 @@ impl Transform {
 
     fn filter_transform(
         statement: &Statement,
-        transaction: BTreeMap<String, EntryValue>,
+        mut transaction: BTreeMap<String, EntryValue>,
     ) -> std::result::Result<Option<BTreeMap<String, EntryValue>>, String> {
         match statement {
             Statement::Comparison(expr) => {
@@ -77,6 +81,8 @@ impl Transform {
                 match result {
                     EntryValue::Bool(b) => {
                         if b {
+                            let source_uuid = transaction.get(&ROW_ID_COLUMN_NAME.to_string()).unwrap().clone();
+                            transaction.insert(SOURCE_ENTRY_ID.to_string(), source_uuid);
                             return Ok(Some(transaction));
                         }
                         return Ok(None);
@@ -109,7 +115,7 @@ impl Transform {
                     Some(v) => Ok(v),
                     None => Err(format!("Transaction missing key {}", table_name)),
                 }?;
-                let existing_entry_result = table.exact_get(foreign_key, search_value);
+                let existing_entry_result = table.find_one(foreign_key, search_value);
                 match existing_entry_result {
                     Ok(existing_entry_exists) => match existing_entry_exists {
                         Some(mut existing_entry) => {
