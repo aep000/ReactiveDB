@@ -49,8 +49,8 @@ impl Column {
 }
 
 impl Table {
-    pub fn new(name: String, columns: Vec<Column>, table_type: TableType) -> io::Result<Table> {
-        let entry_storage_manager = StorageManager::new(format!("db/{}.db", name))?;
+    pub fn new(table_name: String, columns: Vec<Column>, table_type: TableType) -> io::Result<Table> {
+        let mut entry_storage_manager = StorageManager::new(format!("db/{}.db", table_name))?;
         let mut indexes = vec![];
         let mut column_map = HashMap::new();
         match table_type {
@@ -58,7 +58,7 @@ impl Table {
                 for column in &columns {
                     let mut column = column.clone();
                     if column.data_type.is_indexible() {
-                        let file_name = format!("db/{}_{}.index", name, column.name);
+                        let file_name = format!("db/{}_{}.index", table_name, column.name);
                         let storage_manager = StorageManager::new(file_name)?;
                         column.indexed = true;
                         column.index_loc = indexes.len();
@@ -68,6 +68,29 @@ impl Table {
                 }
             }
             TableType::Derived(_) => {
+                entry_storage_manager.start_read_session()?;
+                let raw_entry = entry_storage_manager
+                    .read_data(3)?;
+                entry_storage_manager.end_session();
+                let entry: Result<BTreeMap<String, EntryValue>> =
+                    serde_json::from_slice(raw_entry.as_slice());
+                match entry {
+                    Ok(entry_unwrapped) => {
+                        for (column_name, value) in entry_unwrapped {
+                            let data_type = get_data_type_of_entry(&value);
+                            let mut column = Column::new(column_name.clone(), data_type);
+                            if column.data_type.is_indexible() {
+                                let file_name = format!("db/{}_{}.index", table_name, column.name);
+                                let storage_manager = StorageManager::new(file_name)?;
+                                column.indexed = true;
+                                column.index_loc = indexes.len();
+                                indexes.push(BTree::new(BTREE_NODE_SIZE, storage_manager)?);
+                            }
+                            column_map.insert(column.name.clone(), column);
+                        }
+                    }
+                    _ => {}
+                }
                 // TODO Fix derived table columns so you can read without inserting on restart
                 /*for dir_entry in fs::read_dir("db/")? {
                     let path = dir_entry?.path();
@@ -76,7 +99,7 @@ impl Table {
             }
         }
         return Ok(Table {
-            name: name,
+            name: table_name,
             columns: column_map,
             table_type: table_type,
             output_tables: vec![],

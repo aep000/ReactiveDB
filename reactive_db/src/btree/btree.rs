@@ -134,7 +134,6 @@ impl BTree {
             left_ref: None,
         };
         let found_node = self.search_helper(&dummy_entry, 1)?;
-        self.storage_manager.end_session();
         let start_pos = match found_node.entries.binary_search(&dummy_entry) {
             Ok(pos) => pos,
             Err(pos) => pos,
@@ -147,6 +146,7 @@ impl BTree {
             output.extend(current_node.entries);
             next_node = current_node.next_node;
         }
+        self.storage_manager.end_session();
 
         return Ok(output);
     }
@@ -360,7 +360,7 @@ impl BTree {
                 self.storage_manager
                     .write_data(serde_json::to_vec(&current_node)?, Some(current_node_ref))?;
             }
-            return Ok((true, deleted, current_node.entries[0].index.clone()));
+            return Ok((false, deleted, current_node.entries[0].index.clone()));
         }
         let mut found_index: usize = match current_node.entries.binary_search(index) {
             Ok(pos) => pos,

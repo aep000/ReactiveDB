@@ -50,7 +50,7 @@ fn main() -> io::Result<()> {
     let config = read_config_file("test_cfg.yaml".to_string())?;
     let mut db = Database::from_config(config).unwrap();
     let arr = vec![0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4,0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4,0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4];
-    for n in arr {
+    /*for n in arr {
         let mut entry_to_insert = EntryBuilder::new();
         entry_to_insert.column("testForIteration", EntryValue::Integer(n));
         entry_to_insert.column("testForIndex", EntryValue::Integer(n));
@@ -61,21 +61,21 @@ fn main() -> io::Result<()> {
     }
     
     
-    //print!(
-    //    "{:?}\n",
-    //    db.delete_all(
-    //        &"testTable".to_string(),
-    //        "testForIndex".to_string(),
-    //        EntryValue::Integer(4)
-    //    )
-    //);
-
     print!(
         "{:?}\n",
-        db.find_one(
+        db.delete_all(
             &"testTable".to_string(),
             "testForIndex".to_string(),
             EntryValue::Integer(4)
+        )
+    );*/
+
+    print!(
+        "{:?}\n",
+        db.greater_than_search(
+            &"derived".to_string(),
+            "newColumn".to_string(),
+            EntryValue::Integer(0)
         )
     );
 

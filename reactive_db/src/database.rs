@@ -13,7 +13,6 @@ pub struct Database {
 }
 
 impl Database {
-    // TODO
     pub fn from_config(config: DbConfig) -> Result<Database, String> {
         let mut tables: HashMap<String, Table> = HashMap::new();
         for table in config.tables {
@@ -152,7 +151,7 @@ impl Database {
         };
         match table_obj.greater_than(column, key) {
             Ok(r) => Ok(r),
-            Err(e) => Err(format!("Error when searching for entry {}", e)),
+            Err(e) => Err(format!("Error when searching for entry {:?}", e)),
         }
     }
 
