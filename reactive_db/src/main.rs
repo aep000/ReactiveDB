@@ -50,7 +50,7 @@ fn main() -> io::Result<()> {
     //print!("{:?}",read_config_file("test_cfg.yaml".to_string()));
 
     let config = read_config_file("test_cfg.yaml".to_string())?;
-    let mut db = Database::from_config(config).unwrap();
+    let mut db = Database::from_config(config, "db/".to_string()).unwrap();
     let arr = vec![0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,];
     let mut rng = rand::thread_rng();
     for n in arr {

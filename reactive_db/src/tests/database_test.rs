@@ -6,16 +6,16 @@ mod tests {
     use crate::read_config_file;
     use std::fs;
     use rand::Rng;
-    fn get_db() -> Database{
-        fs::remove_dir_all("db/");
-        fs::create_dir("db/");
+    fn get_db(data_destination:String) -> Database{
+        fs::remove_dir_all(data_destination.clone());
+        fs::create_dir(data_destination.clone());
         let config = read_config_file("test_cfg.yaml".to_string()).unwrap();
-        Database::from_config(config).unwrap()
+        Database::from_config(config, data_destination.clone()).unwrap()
     }
 
     #[test]
     fn insert_many_fetch_one() {
-        let mut db = get_db();
+        let mut db = get_db("db/test1".to_string());
         let arr = 0..29;
         let mut rng = rand::thread_rng();
         let mut middle_entry = None;
@@ -48,6 +48,54 @@ mod tests {
         }
 
         let results = db.less_than_search(&"testTable".to_string(), "testForIteration".to_string(), EntryValue::Integer(5)).unwrap();
+        for n in 0..results.len() {
+            assert_eq!(results[n].get("testForIteration").unwrap(), entries[n].get("testForIteration").unwrap());
+            assert_eq!(results[n].get("testForIndex").unwrap(), entries[n].get("testForIndex").unwrap());
+        }
+    }
+
+    #[test]
+    fn insert_many_less_than() {
+        let mut db = get_db("db/test2".to_string());
+        let arr = 0..29;
+        let mut rng = rand::thread_rng();
+        let mut entries = vec![];
+        for n in arr {
+            let mut entry_to_insert = EntryBuilder::new();
+            let i = rng.gen_range(0.0, 10.0) as isize;
+            entry_to_insert.column("testForIteration", EntryValue::Integer(n));
+            entry_to_insert.column("testForIndex", EntryValue::Integer(i));
+            if n < 5 {
+                entries.push(entry_to_insert.build());
+            }
+            db.insert_entry(&"testTable".to_string(), entry_to_insert.build());
+        }
+        // Test source 
+        let results = db.less_than_search(&"testTable".to_string(), "testForIteration".to_string(), EntryValue::Integer(5)).unwrap();
+        for n in 0..results.len() {
+            assert_eq!(results[n].get("testForIteration").unwrap(), entries[n].get("testForIteration").unwrap());
+            assert_eq!(results[n].get("testForIndex").unwrap(), entries[n].get("testForIndex").unwrap());
+        }
+    }
+
+    #[test]
+    fn insert_many_greater_than() {
+        let mut db = get_db("db/test3".to_string());
+        let arr = 0..29;
+        let mut rng = rand::thread_rng();
+        let mut entries = vec![];
+        for n in arr {
+            let mut entry_to_insert = EntryBuilder::new();
+            let i = rng.gen_range(0.0, 10.0) as isize;
+            entry_to_insert.column("testForIteration", EntryValue::Integer(n));
+            entry_to_insert.column("testForIndex", EntryValue::Integer(i));
+            if n >= 10 {
+                entries.push(entry_to_insert.build());
+            }
+            db.insert_entry(&"testTable".to_string(), entry_to_insert.build());
+        }
+        // Test source 
+        let results = db.greater_than_search(&"testTable".to_string(), "testForIteration".to_string(), EntryValue::Integer(10)).unwrap();
         for n in 0..results.len() {
             assert_eq!(results[n].get("testForIteration").unwrap(), entries[n].get("testForIteration").unwrap());
             assert_eq!(results[n].get("testForIndex").unwrap(), entries[n].get("testForIndex").unwrap());

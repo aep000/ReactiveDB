@@ -34,6 +34,7 @@ pub struct Table {
     pub input_tables: Vec<String>,
     indexes: Vec<BTree>,
     entry_storage_manager: StorageManager,
+    path: String
 }
 
 impl Column {
@@ -48,14 +49,14 @@ impl Column {
 }
 
 impl Table {
-    pub fn new(table_name: String, columns: Vec<Column>, table_type: TableType) -> io::Result<Table> {
-        let mut entry_storage_manager = StorageManager::new(format!("db/{}.db", table_name))?;
+    pub fn new(table_name: String, columns: Vec<Column>, table_type: TableType, file_path: String) -> io::Result<Table> {
+        let mut entry_storage_manager = StorageManager::new(format!("{}/{}.db", file_path, table_name))?;
         let mut indexes = vec![];
         let mut column_map = HashMap::new();
         for column in &columns {
             let mut column = column.clone();
             if column.data_type.is_indexible() {
-                let file_name = format!("db/{}_{}.index", table_name, column.name);
+                let file_name = format!("{}/{}_{}.index", file_path, table_name, column.name);
                 let storage_manager = StorageManager::new(file_name)?;
                 column.indexed = true;
                 column.index_loc = indexes.len();
@@ -77,7 +78,7 @@ impl Table {
                                     let data_type = get_data_type_of_entry(&value);
                                     let mut column = Column::new(column_name.clone(), data_type);
                                     if column.data_type.is_indexible() {
-                                        let file_name = format!("db/{}_{}.index", table_name, column.name);
+                                        let file_name = format!("{}/{}_{}.index", file_path, table_name, column.name);
                                         let storage_manager = StorageManager::new(file_name)?;
                                         column.indexed = true;
                                         column.index_loc = indexes.len();
@@ -102,6 +103,7 @@ impl Table {
             input_tables: vec![],
             indexes: indexes,
             entry_storage_manager: entry_storage_manager,
+            path: file_path
         });
     }
     pub fn insert(
@@ -122,7 +124,8 @@ impl Table {
                 None => match self.table_type {
                     TableType::Derived(_) => {
                         let new_column = Column::new(name.to_string(), get_data_type_of_entry(val));
-                        self.create_new_index(new_column)?;
+                        let path = self.path.clone();
+                        self.create_new_index(new_column, &path)?;
                         match self.columns.get(name) {
                             Some(column) => {
                                 if column.indexed {
@@ -292,9 +295,9 @@ impl Table {
         return Ok(output);
     }
 
-    fn create_new_index(&mut self, mut column: Column) -> io::Result<()> {
+    fn create_new_index(&mut self, mut column: Column, file_path: &String) -> io::Result<()> {
         if column.data_type.is_indexible() {
-            let file_name = format!("db/{}_{}.index", self.name, column.name);
+            let file_name = format!("{}/{}_{}.index", file_path, self.name, column.name);
             let storage_manager = StorageManager::new(file_name)?;
             column.indexed = true;
             column.index_loc = self.indexes.len();

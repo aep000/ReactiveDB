@@ -14,7 +14,7 @@ pub struct Database {
 }
 
 impl Database {
-    pub fn from_config(config: DbConfig) -> Result<Database, String> {
+    pub fn from_config(config: DbConfig, storage_path: String) -> Result<Database, String> {
         let mut tables: HashMap<String, Table> = HashMap::new();
         for table in config.tables {
             match table {
@@ -25,14 +25,14 @@ impl Database {
                         columns.push(Column::new(name, data_type))
                     }
                     columns.push(Column::new("_entryId".to_string(), DataType::ID));
-                    let new_table = match Table::new(name.clone(), columns, TableType::Source) {
+                    let new_table = match Table::new(name.clone(), columns, TableType::Source, storage_path.clone()) {
                         Ok(t) => Ok(t),
                         Err(e) => Err(format!("{:?}", e)),
                     }?;
                     tables.insert(name, new_table);
                 }
                 TableConfig::Derived(config) => {
-                    let table = parse_transform_config(config)?;
+                    let table = parse_transform_config(config, storage_path.clone())?;
                     tables.insert(table.name.clone(), table);
                 }
             }
@@ -175,7 +175,7 @@ impl Database {
     }
 }
 
-fn parse_transform_config(config: TransformTableConfig) -> Result<Table, String> {
+fn parse_transform_config(config: TransformTableConfig, storage_path: String) -> Result<Table, String> {
     let name = config.name;
     let mut columns = vec![];
     columns.push(Column::new("_entryId".to_string(), DataType::ID));
@@ -204,7 +204,7 @@ fn parse_transform_config(config: TransformTableConfig) -> Result<Table, String>
         }
         _ => Err("Unsupported derived table".to_string())?,
     };
-    let table = Table::new(name, columns, TableType::Derived(transform));
+    let table = Table::new(name, columns, TableType::Derived(transform), storage_path);
     match table {
         Ok(mut t) => {
             t.input_tables = input_tables;
