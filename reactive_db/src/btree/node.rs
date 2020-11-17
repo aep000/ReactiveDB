@@ -5,34 +5,34 @@ use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Node {
-    pub entries: Vec<Entry>,
+    pub entries: Vec<NodeEntry>,
     pub next_node: u32,
     pub leaf: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, )]
-pub struct Entry {
+pub struct NodeEntry {
     pub index: IndexValue,
     pub right_ref: u32,
     pub left_ref: Option<u32>,
 }
 
-impl Ord for Entry {
-    fn cmp(&self, other: &Entry) -> Ordering {
+impl Ord for NodeEntry {
+    fn cmp(&self, other: &NodeEntry) -> Ordering {
         return self.index.cmp(&other.index);
     }
 }
 
-impl Eq for Entry {}
+impl Eq for NodeEntry {}
 
-impl PartialEq for Entry {
-    fn eq(&self, other: &Entry) -> bool {
+impl PartialEq for NodeEntry {
+    fn eq(&self, other: &NodeEntry) -> bool {
         self.index.cmp(&other.index) == Ordering::Equal
     }
 }
 
-impl PartialOrd for Entry {
-    fn partial_cmp(&self, other: &Entry) -> Option<Ordering> {
+impl PartialOrd for NodeEntry {
+    fn partial_cmp(&self, other: &NodeEntry) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }

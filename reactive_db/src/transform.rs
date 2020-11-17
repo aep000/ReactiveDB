@@ -1,9 +1,9 @@
 use crate::constants::SOURCE_ENTRY_ID;
 use crate::constants::ROW_ID_COLUMN_NAME;
 use crate::database::Database;
-use crate::parser::ExpressionValue;
-use crate::parser::Statement;
+use crate::config::parser::{ExpressionValue, Statement};
 use crate::EntryValue;
+use crate::Entry;
 use crate::Expression;
 use crate::Table;
 use std::collections::BTreeMap;
@@ -21,10 +21,10 @@ pub enum Transform {
 impl Transform {
     pub fn execute(
         &self,
-        transaction: BTreeMap<String, EntryValue>,
+        transaction: Entry,
         table_name: &String,
         db: &Database,
-    ) -> Option<BTreeMap<String, EntryValue>> {
+    ) -> Option<Entry> {
         match self {
             Transform::Function(statments) => {
                 match Transform::function_transform(statments, transaction) {
@@ -51,9 +51,9 @@ impl Transform {
 
     fn function_transform(
         statements: &Vec<Statement>,
-        transaction: BTreeMap<String, EntryValue>,
-    ) -> std::result::Result<BTreeMap<String, EntryValue>, String> {
-        let mut map: BTreeMap<String, EntryValue> = BTreeMap::new();
+        transaction: Entry,
+    ) -> std::result::Result<Entry, String> {
+        let mut map: Entry = BTreeMap::new();
         let source_uuid = transaction.get(&ROW_ID_COLUMN_NAME.to_string()).unwrap();
         map.insert(SOURCE_ENTRY_ID.to_string(), source_uuid.clone());
         for statement in statements {
@@ -73,8 +73,8 @@ impl Transform {
 
     fn filter_transform(
         statement: &Statement,
-        mut transaction: BTreeMap<String, EntryValue>,
-    ) -> std::result::Result<Option<BTreeMap<String, EntryValue>>, String> {
+        mut transaction: Entry,
+    ) -> std::result::Result<Option<Entry>, String> {
         match statement {
             Statement::Comparison(expr) => {
                 let result = execute_expression(&transaction, expr)?;
@@ -96,10 +96,10 @@ impl Transform {
 
     fn union_transform(
         table_foreign_key_pairs: &Vec<(String, String)>,
-        transaction: BTreeMap<String, EntryValue>,
+        transaction: Entry,
         table_name: String,
         db: &mut Database,
-    ) -> std::result::Result<BTreeMap<String, EntryValue>, String> {
+    ) -> std::result::Result<Entry, String> {
         let dest_table = db.tables.get_mut(&table_name);
         let mut foreign_key = "".to_string();
         // This is slow and should be solved
@@ -137,7 +137,7 @@ impl Transform {
 }
 
 fn execute_expression(
-    transaction: &BTreeMap<String, EntryValue>,
+    transaction: &Entry,
     expression: &Expression,
 ) -> std::result::Result<EntryValue, String> {
     return match expression {
@@ -151,7 +151,7 @@ fn execute_expression(
 }
 
 fn resolve_expression_value(
-    transaction: &BTreeMap<String, EntryValue>,
+    transaction: &Entry,
     value: &ExpressionValue,
 ) -> std::result::Result<EntryValue, String> {
     return match value {

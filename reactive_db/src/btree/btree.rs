@@ -2,7 +2,7 @@ use serde_json::Result;
 use std::io;
 use std::io::{Cursor, Error, ErrorKind};
 
-use crate::btree::node::{Entry, IndexValue, Node};
+use crate::btree::node::{NodeEntry, IndexValue, Node};
 use crate::StorageManager;
 
 pub struct BTree {
@@ -42,7 +42,7 @@ impl BTree {
         delete_all_nodes: bool,
     ) -> io::Result<Vec<u32>> {
         self.storage_manager.start_write_session()?;
-        let entry = Entry {
+        let entry = NodeEntry {
             index: index,
             left_ref: None,
             right_ref: match reference {
@@ -72,7 +72,7 @@ impl BTree {
 
     pub fn insert(&mut self, index: IndexValue, reference: u32) -> io::Result<()> {
         self.storage_manager.start_write_session()?;
-        let entry = Entry {
+        let entry = NodeEntry {
             index: index,
             left_ref: None,
             right_ref: reference,
@@ -87,7 +87,7 @@ impl BTree {
                     let location = self.storage_manager.write_data(temp_old_root, None)?;
                     left = location;
                 }
-                let new_entry = Entry {
+                let new_entry = NodeEntry {
                     left_ref: Some(left),
                     index: index,
                     right_ref: right,
@@ -105,15 +105,15 @@ impl BTree {
         return Ok(());
     }
 
-    /*pub fn delete(&mut self, index: IndexValue, reference:u32) -> io::Result<Option<Entry>>{
+    /*pub fn delete(&mut self, index: IndexValue, reference:u32) -> io::Result<Option<NodeEntry>>{
         self.storage_manager.start_write_session()?;
 
     }*/
 
     // Searches for exact values and never
-    pub fn search_exact(&mut self, index: IndexValue) -> io::Result<Option<Entry>> {
+    pub fn search_exact(&mut self, index: IndexValue) -> io::Result<Option<NodeEntry>> {
         self.storage_manager.start_read_session()?;
-        let dummy_entry = Entry {
+        let dummy_entry = NodeEntry {
             index: index,
             right_ref: 0,
             left_ref: None,
@@ -126,9 +126,9 @@ impl BTree {
         };
     }
 
-    pub fn greater_than(&mut self, index: IndexValue) -> io::Result<Vec<Entry>> {
+    pub fn greater_than(&mut self, index: IndexValue) -> io::Result<Vec<NodeEntry>> {
         self.storage_manager.start_read_session()?;
-        let dummy_entry = Entry {
+        let dummy_entry = NodeEntry {
             index: index,
             right_ref: 0,
             left_ref: None,
@@ -151,8 +151,8 @@ impl BTree {
         return Ok(output);
     }
 
-    pub fn less_than(&mut self, index: IndexValue, equals: bool) -> io::Result<Vec<Entry>> {
-        let dummy_entry = Entry {
+    pub fn less_than(&mut self, index: IndexValue, equals: bool) -> io::Result<Vec<NodeEntry>> {
+        let dummy_entry = NodeEntry {
             index: index,
             right_ref: 0,
             left_ref: None,
@@ -187,7 +187,7 @@ impl BTree {
         return Ok(output);
     }
 
-    fn insert_helper(&mut self, current_node_ref: u32, entry: Entry) -> io::Result<InsertResult> {
+    fn insert_helper(&mut self, current_node_ref: u32, entry: NodeEntry) -> io::Result<InsertResult> {
         let mut current_node = self.get_node(current_node_ref)?;
         //Is this a leaf node?
         if current_node.leaf {
@@ -267,7 +267,7 @@ impl BTree {
             return match sub_results {
                 InsertResult::Normal => Ok(InsertResult::Normal),
                 InsertResult::Rebalance(left_ref, result_index, right_ref) => {
-                    let new_entry = Entry {
+                    let new_entry = NodeEntry {
                         index: result_index,
                         left_ref: Some(left_ref),
                         right_ref: right_ref,
@@ -337,10 +337,10 @@ impl BTree {
 
     fn delete_helper(
         &mut self,
-        index: &Entry,
+        index: &NodeEntry,
         current_node_ref: u32,
         block_num_match: bool,
-    ) -> io::Result<(bool, Option<Entry>, IndexValue)> {
+    ) -> io::Result<(bool, Option<NodeEntry>, IndexValue)> {
         let mut current_node = self.get_node(current_node_ref)?;
         if current_node.leaf {
             let found_entry = self.find_entry_in_node(&current_node, index, block_num_match);
@@ -424,7 +424,7 @@ impl BTree {
         return Ok((false, deleted_entry, current_node.entries[0].index.clone()));
     }
 
-    fn search_helper(&mut self, index: &Entry, current_node_ref: u32) -> io::Result<Node> {
+    fn search_helper(&mut self, index: &NodeEntry, current_node_ref: u32) -> io::Result<Node> {
         let current_node = self.get_node(current_node_ref)?;
         if current_node.leaf {
             return Ok(current_node);
@@ -457,9 +457,9 @@ impl BTree {
     fn find_entry_in_node(
         &mut self,
         node: &Node,
-        entry: &Entry,
+        entry: &NodeEntry,
         match_reference: bool,
-    ) -> Option<(Entry, usize)> {
+    ) -> Option<(NodeEntry, usize)> {
         match node.entries.binary_search(&entry) {
             Ok(pos) => Some((node.entries[pos].clone(), pos)),
             Err(pos) => {
@@ -489,7 +489,7 @@ impl BTree {
     }
 }
 
-fn insert_entry(entry: &Entry, destination: &mut Vec<Entry>) -> usize {
+fn insert_entry(entry: &NodeEntry, destination: &mut Vec<NodeEntry>) -> usize {
     match destination.binary_search(&entry) {
         Ok(pos) => {
             destination.insert(pos, entry.clone());
@@ -509,7 +509,7 @@ fn unwrap_encode(node: &Node) -> Vec<u8> {
     };
 }
 
-fn insert_non_leaf_entry(entry: &Entry, destination: &mut Vec<Entry>) -> usize {
+fn insert_non_leaf_entry(entry: &NodeEntry, destination: &mut Vec<NodeEntry>) -> usize {
     let location = insert_entry(&entry, destination);
     if location > 0 {
         destination[location - 1].right_ref = entry.left_ref.unwrap();

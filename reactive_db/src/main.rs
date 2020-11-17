@@ -1,24 +1,22 @@
 mod btree;
-mod config_reader;
 mod database;
-mod parser;
 mod storage_manager;
 mod table;
 mod transform;
 mod types;
 mod constants;
 mod tests;
+mod config;
 
 use crate::btree::btree::BTree;
 use crate::btree::node::IndexValue;
-use crate::config_reader::read_config_file;
+use crate::config::config_reader::read_config_file;
 use crate::database::Database;
-use crate::parser::Expression;
-use crate::parser::Statement;
+use crate::config::parser::{Statement, Expression};
 use crate::storage_manager::StorageManager;
 use crate::table::{Column, Table, TableType};
 use crate::transform::Transform;
-use crate::types::{DataType, EntryValue};
+use crate::types::{DataType, EntryValue, Entry};
 use rand::Rng;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -89,7 +87,7 @@ fn main() -> io::Result<()> {
 }
 #[derive(Clone)]
 struct EntryBuilder {
-    map: BTreeMap<String, EntryValue>,
+    map: Entry,
 }
 
 impl EntryBuilder {
@@ -102,7 +100,7 @@ impl EntryBuilder {
         self.map.insert(key.to_string(), value);
         return self.clone();
     }
-    pub fn build(&mut self) -> BTreeMap<String, EntryValue> {
+    pub fn build(&mut self) -> Entry {
         self.map.clone()
     }
 }

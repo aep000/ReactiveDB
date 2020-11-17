@@ -3,7 +3,7 @@ use crate::database::Database;
 use crate::transform::Transform;
 use crate::types::create_custom_io_error;
 use crate::types::DataType;
-use crate::types::EntryValue;
+use crate::types::{EntryValue, Entry};
 use crate::BTree;
 use crate::StorageManager;
 use serde_json::Result;
@@ -70,7 +70,7 @@ impl Table {
                 match entry_storage_manager.read_data(3) {
                     Ok(raw_entry) => {
                         entry_storage_manager.end_session();
-                        let entry: Result<BTreeMap<String, EntryValue>> =
+                        let entry: Result<Entry> =
                             serde_json::from_slice(raw_entry.as_slice());
                         match entry {
                             Ok(entry_unwrapped) => {
@@ -108,8 +108,8 @@ impl Table {
     }
     pub fn insert(
         &mut self,
-        mut entry: BTreeMap<String, EntryValue>,
-    ) -> io::Result<Option<BTreeMap<String, EntryValue>>> {
+        mut entry: Entry,
+    ) -> io::Result<Option<Entry>> {
         entry.insert(ROW_ID_COLUMN_NAME.to_string(), EntryValue::ID(Uuid::new_v4().to_hyphenated().to_string()));
         self.entry_storage_manager.start_write_session()?;
         let reserved_root = self.entry_storage_manager.allocate_block();
@@ -146,7 +146,7 @@ impl Table {
         Ok(Some(entry))
     }
 
-    pub fn delete(&mut self, search_column_name: String, value: &EntryValue) -> io::Result<()> {
+    pub fn delete(&mut self, search_column_name: String, value: &EntryValue) -> io::Result<Vec<Entry>> {
         let search_column = match self.columns.get(&search_column_name) {
             Some(c) => Ok(c),
             None => Err(create_custom_io_error(
@@ -160,12 +160,13 @@ impl Table {
         }
         let location_refs =
             self.indexes[search_column.index_loc].delete(value.to_index_value()?, None, true)?;
+        let mut deleted_entries = vec![];
         for loc in location_refs {
             self.entry_storage_manager.start_write_session()?;
             let raw_entry = self.entry_storage_manager.read_data(loc)?;
             self.entry_storage_manager.delete_data(loc)?;
             self.entry_storage_manager.end_session();
-            let entry: Result<BTreeMap<String, EntryValue>> =
+            let entry: Result<Entry> =
                 serde_json::from_slice(raw_entry.as_slice());
             match entry {
                 Ok(entry) => {
@@ -181,18 +182,19 @@ impl Table {
                             };
                         }
                     }
+                    deleted_entries.push(entry);
                 }
                 Err(e) => Err(io::Error::new(io::ErrorKind::Other, format!("{:?}", e)))?,
             }
         }
-        Ok(())
+        Ok(deleted_entries)
     }
 
     pub fn find_one(
         &mut self,
         search_column_name: String,
         value: &EntryValue,
-    ) -> io::Result<Option<BTreeMap<String, EntryValue>>> {
+    ) -> io::Result<Option<Entry>> {
         let column = match self.columns.get(&search_column_name) {
             Some(c) => Ok(c),
             None => Err(create_custom_io_error(
@@ -212,7 +214,7 @@ impl Table {
                     .entry_storage_manager
                     .read_data(location_ref.right_ref)?;
                 self.entry_storage_manager.end_session();
-                let entry: Result<BTreeMap<String, EntryValue>> =
+                let entry: Result<Entry> =
                     serde_json::from_slice(raw_entry.as_slice());
                 return match entry {
                     Ok(tree) => Ok(Some(tree)),
@@ -228,7 +230,7 @@ impl Table {
         search_column_name: String,
         value: EntryValue,
         equals: bool,
-    ) -> io::Result<Vec<BTreeMap<String, EntryValue>>> {
+    ) -> io::Result<Vec<Entry>> {
         let column = match self.columns.get(&search_column_name) {
             Some(c) => Ok(c),
             None => Err(create_custom_io_error(
@@ -248,7 +250,7 @@ impl Table {
             let raw_entry = self
                 .entry_storage_manager
                 .read_data(location_ref.right_ref)?;
-            let entry: Result<BTreeMap<String, EntryValue>> =
+            let entry: Result<Entry> =
                 serde_json::from_slice(raw_entry.as_slice());
             let entry_unwrapped = match entry {
                 Ok(tree) => Ok(tree),
@@ -264,7 +266,7 @@ impl Table {
         &mut self,
         search_column_name: String,
         value: EntryValue,
-    ) -> io::Result<Vec<BTreeMap<String, EntryValue>>> {
+    ) -> io::Result<Vec<Entry>> {
         let column = match self.columns.get(&search_column_name) {
             Some(c) => Ok(c),
             None => Err(create_custom_io_error(
@@ -283,7 +285,7 @@ impl Table {
             let raw_entry = self
                 .entry_storage_manager
                 .read_data(location_ref.right_ref)?;
-            let entry: Result<BTreeMap<String, EntryValue>> =
+            let entry: Result<Entry> =
                 serde_json::from_slice(raw_entry.as_slice());
             let entry_unwrapped = match entry {
                 Ok(tree) => Ok(tree),

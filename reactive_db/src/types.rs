@@ -1,4 +1,4 @@
-use crate::parser::Tokens;
+use crate::config::parser::Tokens;
 use crate::IndexValue;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -6,6 +6,8 @@ use std::collections::BTreeMap;
 use std::io;
 use std::io::{Error, ErrorKind};
 use uuid::Uuid;
+
+pub type Entry = BTreeMap<String, EntryValue>;
 
 #[derive(Clone, Ord, Eq, PartialOrd, PartialEq, Serialize, Deserialize, Debug)]
 pub enum DataType {
@@ -22,7 +24,7 @@ pub enum DataType {
 pub enum EntryValue {
     Integer(isize),
     Array(Vec<EntryValue>),
-    Map(BTreeMap<String, EntryValue>),
+    Map(Entry),
     //Float(f64),
     Str(String),
     Bool(bool),
