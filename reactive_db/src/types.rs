@@ -26,7 +26,7 @@ pub enum EntryValue {
     //Float(f64),
     Str(String),
     Bool(bool),
-    ID(Uuid)
+    ID(String)
 }
 
 impl DataType {

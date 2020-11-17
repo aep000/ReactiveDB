@@ -43,7 +43,7 @@ pub enum IndexValue {
     Integer(isize),
     String(String),
     Array(Vec<IndexValue>),
-    ID(Uuid)
+    ID(String)
 }
 
 impl fmt::Debug for IndexValue {

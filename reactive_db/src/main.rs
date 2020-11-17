@@ -7,6 +7,7 @@ mod table;
 mod transform;
 mod types;
 mod constants;
+mod tests;
 
 use crate::btree::btree::BTree;
 use crate::btree::node::IndexValue;
@@ -80,7 +81,7 @@ fn main() -> io::Result<()> {
         db.greater_than_search(
             &"testTable".to_string(),
             "testForIndex".to_string(),
-            EntryValue::Integer(7)
+            EntryValue::Integer(6)
         )
     );
 

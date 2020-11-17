@@ -1,5 +1,3 @@
-use crate::constants::ROW_ID_COLUMN_NAME;
-use uuid::Uuid;
 use crate::config_reader::{DbConfig, TableConfig, TransformTableConfig, TransformType};
 use crate::transform::Transform;
 use crate::Column;
@@ -93,7 +91,6 @@ impl Database {
         table: &String,
         mut entry: BTreeMap<String, EntryValue>,
     ) -> Result<(), String> {
-        entry.insert(ROW_ID_COLUMN_NAME.to_string(), EntryValue::ID(Uuid::new_v4()));
         let output_tables = self.get_all_next_inserts(table);
         let transform = self.get_table_transform(table);
         let entry = match transform {

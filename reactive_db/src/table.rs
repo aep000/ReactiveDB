@@ -108,7 +108,7 @@ impl Table {
         &mut self,
         mut entry: BTreeMap<String, EntryValue>,
     ) -> io::Result<Option<BTreeMap<String, EntryValue>>> {
-        entry.insert(ROW_ID_COLUMN_NAME.to_string(), EntryValue::ID(Uuid::new_v4()));
+        entry.insert(ROW_ID_COLUMN_NAME.to_string(), EntryValue::ID(Uuid::new_v4().to_hyphenated().to_string()));
         self.entry_storage_manager.start_write_session()?;
         let reserved_root = self.entry_storage_manager.allocate_block();
         for (name, val) in &entry {
