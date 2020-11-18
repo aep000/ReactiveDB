@@ -123,34 +123,3 @@ pub fn start_server() -> std::io::Result<()> {
     }
     Ok(())
 }
-
-#[derive(Serialize, Deserialize)]
-pub enum DBRequest {
-    FindOne(GetData),
-    LessThan(GetData),
-    GreaterThan(GetData),
-    InsertData(InsertData),
-    DeleteData(DeleteData)
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct GetData {
-    pub table: String,
-    pub column: String,
-    pub key: EntryValue
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct InsertData {
-    pub table: String,
-    pub entry: Entry,
-}
-
-pub type DeleteData = GetData;
-
-#[derive(Serialize, Deserialize)]
-pub enum DBResponse {
-    ManyResults(Result<Vec<Entry>, String>),
-    OneResult(Result<Option<Entry>, String>),
-    NoResult(Result<(), String>)
-}
