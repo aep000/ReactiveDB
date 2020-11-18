@@ -1,7 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use crate::EntryValue;
-    use crate::EntryBuilder;
+    use crate::BTreeMap;
+use crate::Entry;
+use crate::EntryValue;
     use crate::Database;
     use crate::read_config_file;
     use std::fs;
@@ -31,7 +32,7 @@ mod tests {
             if n < 5 {
                 entries.push(entry_to_insert.build());
             }
-            db.insert_entry(&"testTable".to_string(), entry_to_insert.build());
+            db.insert_entry(&"testTable".to_string(), entry_to_insert.build()).unwrap();
         }
         // Test source 
         let results = db.find_one(&"testTable".to_string(), "testForIteration".to_string(), EntryValue::Integer(15)).unwrap().unwrap();
@@ -68,7 +69,7 @@ mod tests {
             if n < 5 {
                 entries.push(entry_to_insert.build());
             }
-            db.insert_entry(&"testTable".to_string(), entry_to_insert.build());
+            db.insert_entry(&"testTable".to_string(), entry_to_insert.build()).unwrap();
         }
         // Test source 
         let results = db.less_than_search(&"testTable".to_string(), "testForIteration".to_string(), EntryValue::Integer(5)).unwrap();
@@ -92,13 +93,32 @@ mod tests {
             if n >= 10 {
                 entries.push(entry_to_insert.build());
             }
-            db.insert_entry(&"testTable".to_string(), entry_to_insert.build());
+            db.insert_entry(&"testTable".to_string(), entry_to_insert.build()).unwrap();
         }
         // Test source 
         let results = db.greater_than_search(&"testTable".to_string(), "testForIteration".to_string(), EntryValue::Integer(10)).unwrap();
         for n in 0..results.len() {
             assert_eq!(results[n].get("testForIteration").unwrap(), entries[n].get("testForIteration").unwrap());
             assert_eq!(results[n].get("testForIndex").unwrap(), entries[n].get("testForIndex").unwrap());
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct EntryBuilder {
+        map: Entry,
+    }
+    impl EntryBuilder {
+        pub fn new() -> EntryBuilder {
+            return EntryBuilder {
+                map: BTreeMap::new(),
+            };
+        }
+        pub fn column(&mut self, key: &str, value: EntryValue) -> EntryBuilder {
+            self.map.insert(key.to_string(), value);
+            return self.clone();
+        }
+        pub fn build(&mut self) -> Entry {
+            self.map.clone()
         }
     }
 }

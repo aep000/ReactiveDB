@@ -32,14 +32,17 @@ impl ClientThread {
             let mut size_buffer = [0; 4];
             stream.read(&mut size_buffer)?;
             let message_size = Cursor::new(size_buffer).read_u32::<BigEndian>().unwrap() as usize;
+            if message_size == 0 {
+                continue;
+            }
             let mut message_buffer = vec![0; message_size];
             stream.read(&mut message_buffer)?;
             let json_result: serde_json::Result<DBRequest> = serde_json::from_slice(message_buffer.as_slice());
-
+            println!("{:?}", size_buffer);
             // Request db thread for results
             let _ = match json_result {
                 Ok(request) => self.db_request_channel.send((request, self.id)),
-                Err(e) => panic!(format!("{:?}", e))
+                Err(e) => panic!(format!("{:?}, {:?}", e, message_buffer))
             };
 
             let db_result = match self.db_result_channel.recv() {
