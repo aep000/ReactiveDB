@@ -5,7 +5,6 @@ use crate::config::parser::{ExpressionValue, Statement};
 use crate::EntryValue;
 use crate::Entry;
 use crate::Expression;
-use crate::Table;
 use std::collections::BTreeMap;
 
 // Transform struct generated after parsing the config file

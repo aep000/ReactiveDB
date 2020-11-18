@@ -7,7 +7,10 @@ mod types;
 mod constants;
 mod tests;
 mod config;
+mod server;
 
+use crate::server::{DBRequest, InsertData, GetData};
+use std::sync::mpsc::channel;
 use crate::btree::btree::BTree;
 use crate::btree::node::IndexValue;
 use crate::config::config_reader::read_config_file;
@@ -22,6 +25,9 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::io;
 use std::time::Instant;
+use std::thread;
+use std::time::Duration;
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
 fn main() -> io::Result<()> {
     /*
@@ -46,42 +52,38 @@ fn main() -> io::Result<()> {
         println!("{:?}", test_table.less_than("first_column".to_string(), EntryValue::Integer(14), true));
     */
     //print!("{:?}",read_config_file("test_cfg.yaml".to_string()));
+    let request = GetData {
+        column: "testForIndex".to_string(),
+        table: "testTable".to_string(),
+        key: EntryValue::Integer(0)
+    };
 
-    let config = read_config_file("test_cfg.yaml".to_string())?;
-    let mut db = Database::from_config(config, "db/".to_string()).unwrap();
-    let arr = vec![0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,];
-    let mut rng = rand::thread_rng();
-    for n in arr {
-        let mut entry_to_insert = EntryBuilder::new();
-        let i = rng.gen_range(0.0, 10.0) as isize;
-        entry_to_insert.column("testForIteration", EntryValue::Integer(n));
-        entry_to_insert.column("testForIndex", EntryValue::Integer(i));
-        print!(
-            "{}, {}: {:?}\n",
-            n,
-            i,
-            db.insert_entry(&"testTable".to_string(), entry_to_insert.build())
-        );
-    }
-    
-    
-    print!(
-        "{:?}\n",
-        db.delete_all(
-            &"testTable".to_string(),
-            "testForIndex".to_string(),
-            EntryValue::Integer(8)
-        )
-    );
+    let request = DBRequest::FindOne(request);
+    let mut serialized_request = serde_json::to_string(&request).unwrap();
+    let mut total_request: Vec<u8> = vec![];
+    total_request.write_u32::<BigEndian>(serialized_request.len() as u32)?;
+    let mut bytes = serialized_request.into_bytes();
+    total_request.append(&mut bytes);
+    print!("{}\n", String::from_utf8(total_request).unwrap());
 
-    print!(
-        "{:?}\n",
-        db.greater_than_search(
-            &"testTable".to_string(),
-            "testForIndex".to_string(),
-            EntryValue::Integer(6)
-        )
-    );
+    let mut entry_builder = EntryBuilder::new();
+    entry_builder.column("testForIndex", EntryValue::Integer(0));
+    entry_builder.column("testForIteration", EntryValue::Integer(1));
+
+    let request = InsertData {
+        table: "testTable".to_string(),
+        entry: entry_builder.build()
+    };
+
+    let request = DBRequest::InsertData(request);
+    let mut serialized_request = serde_json::to_string(&request).unwrap();
+    let mut total_request: Vec<u8> = vec![];
+    total_request.write_u32::<BigEndian>(serialized_request.len() as u32)?;
+    let mut bytes = serialized_request.into_bytes();
+    total_request.append(&mut bytes);
+    print!("{}\n", String::from_utf8(total_request).unwrap());
+
+    server::start_server()?;
 
     return Ok(());
 }

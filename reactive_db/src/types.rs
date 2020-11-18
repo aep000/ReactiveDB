@@ -5,7 +5,6 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::io;
 use std::io::{Error, ErrorKind};
-use uuid::Uuid;
 
 pub type Entry = BTreeMap<String, EntryValue>;
 
@@ -161,13 +160,7 @@ pub enum OperationOrComparison {
 }
 
 impl OperationOrComparison {
-    pub fn get_operation_or_comparison(token: Tokens) -> Result<OperationOrComparison, ()> {
-        match token {
-            Tokens::Operator(operation) => Ok(OperationOrComparison::Operation(operation)),
-            Tokens::Comparison(comparison) => Ok(OperationOrComparison::Comparison(comparison)),
-            _ => Err(()),
-        }
-    }
+    
     pub fn evaluate(&self, left: EntryValue, right: EntryValue) -> Result<EntryValue, String> {
         match self {
             OperationOrComparison::Operation(op) => op.evaluate(left, right),

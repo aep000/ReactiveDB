@@ -1,0 +1,3 @@
+l{"InsertData":{"table":"testTable","entry":{"testForIndex":{"Integer":1},"testForIteration":{"Integer":2}}}}
+
+M{"FindOne":{"table":"testTable","column":"testForIndex","key":{"Integer":0}}}
