@@ -50,13 +50,13 @@ impl BTree {
                 None => 0,
             },
         };
-        let (should_rebalance, deleted_entry, new_index) =
+        let (_, deleted_entry, _) =
             self.delete_helper(&entry, 1, entry.right_ref != 0)?;
         let mut deleted = deleted_entry;
         let mut deleted_indexes = vec![];
         while delete_all_nodes && deleted != None {
             deleted_indexes.push(deleted.unwrap().right_ref);
-            let (should_rebalance, deleted_entry, new_index) =
+            let (_, deleted_entry, _) =
                 match self.delete_helper(&entry, 1, entry.right_ref != 0) {
                     Ok(t) => t,
                     _ => {
@@ -450,7 +450,7 @@ impl BTree {
         let current_node: Result<Node> = serde_json::from_reader(Cursor::new(current_node_raw));
         return match current_node {
             Ok(node) => Ok(node),
-            Err(error) => Err(Error::new(ErrorKind::Other, "Error Decoding Node")),
+            Err(_) => Err(Error::new(ErrorKind::Other, "Error Decoding Node")),
         };
     }
 
@@ -518,8 +518,4 @@ fn insert_non_leaf_entry(entry: &NodeEntry, destination: &mut Vec<NodeEntry>) ->
         destination[location + 1].left_ref = Some(entry.right_ref);
     }
     return location;
-}
-
-fn print_raw_stored_data(data: &Vec<u8>) {
-    print!("\n{:?}", std::str::from_utf8(data.as_slice()));
 }

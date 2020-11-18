@@ -1,4 +1,3 @@
-use crate::config::parser::Tokens;
 use crate::IndexValue;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -160,7 +159,6 @@ pub enum OperationOrComparison {
 }
 
 impl OperationOrComparison {
-    
     pub fn evaluate(&self, left: EntryValue, right: EntryValue) -> Result<EntryValue, String> {
         match self {
             OperationOrComparison::Operation(op) => op.evaluate(left, right),

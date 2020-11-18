@@ -110,16 +110,6 @@ pub enum Expression {
     ),
 }
 
-#[derive(Eq, PartialEq)]
-enum LexingMode {
-    Word,
-    Nothing,
-    Number,
-    Operator,
-    Str,
-    Comparison,
-}
-
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum Tokens {
     Word(String),
@@ -347,4 +337,13 @@ fn convert_char_to_operation(op: char) -> Operation {
         '^' => Operation::Exp,
         _ => panic!("Unknown operation {}", op),
     }
+}
+
+#[derive(Eq, PartialEq)]
+enum LexingMode {
+    Word,
+    Nothing,
+    Number,
+    Str,
+    Comparison,
 }

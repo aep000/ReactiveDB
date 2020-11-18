@@ -28,7 +28,7 @@ impl ClientThread {
         };
     }
     fn start(&self, mut stream: TcpStream) -> std::io::Result<()> {
-        while true {
+        loop {
             let mut size_buffer = [0; 4];
             stream.read(&mut size_buffer)?;
             let message_size = Cursor::new(size_buffer).read_u32::<BigEndian>().unwrap() as usize;
@@ -37,7 +37,7 @@ impl ClientThread {
             let json_result: serde_json::Result<DBRequest> = serde_json::from_slice(message_buffer.as_slice());
 
             // Request db thread for results
-            let request = match json_result {
+            let _ = match json_result {
                 Ok(request) => self.db_request_channel.send((request, self.id)),
                 Err(e) => panic!(format!("{:?}", e))
             };
@@ -51,9 +51,8 @@ impl ClientThread {
                 Err(e) => panic!(e)
             };
             stream.write_u32::<BigEndian>(serialized_result.len() as u32)?;
-            stream.write(serialized_result.as_slice());
+            stream.write(serialized_result.as_slice())?;
         }
-        Ok(())
     }
 }
 
@@ -71,7 +70,7 @@ fn db_thread(request_reciever: Receiver<(DBRequest, Uuid)>, response_channel_rec
             response_channels.insert(new_client_id, new_channel);
         }
         let response_channel = response_channels.get(&client_id).unwrap();
-        let response = match request {
+        match request {
             DBRequest::FindOne(request) => {
                 let found_one = db.find_one(&request.table, request.column, request.key);
                 response_channel.send(DBResponse::OneResult(found_one));
@@ -123,13 +122,6 @@ pub fn start_server() -> std::io::Result<()> {
         });
     }
     Ok(())
-}
-
-fn convert_response(resp: DBResponse) -> String {
-    match serde_json::to_string(&resp){
-        Ok(r) => r,
-        Err(e) => format!("{:?}", e)
-    }
 }
 
 #[derive(Serialize, Deserialize)]

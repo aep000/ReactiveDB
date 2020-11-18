@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt;
-use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Node {

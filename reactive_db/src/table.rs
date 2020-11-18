@@ -1,5 +1,4 @@
 use crate::constants::{ROW_ID_COLUMN_NAME, BTREE_NODE_SIZE};
-use crate::database::Database;
 use crate::transform::Transform;
 use crate::types::create_custom_io_error;
 use crate::types::DataType;
@@ -7,9 +6,8 @@ use crate::types::{EntryValue, Entry};
 use crate::BTree;
 use crate::StorageManager;
 use serde_json::Result;
-use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::{fs, io};
+use std::io;
 use uuid::Uuid;
 
 #[derive(Clone, Ord, Eq, PartialOrd, PartialEq)]

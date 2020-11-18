@@ -1,10 +1,9 @@
 use crate::config::parser::parse_transform_config;
 use crate::types::Entry;
-use crate::config::config_reader::{DbConfig, TableConfig, TransformTableConfig, TransformType};
+use crate::config::config_reader::{DbConfig, TableConfig};
 use crate::transform::Transform;
 use crate::Column;
 use crate::EntryValue;
-use crate::Statement;
 use crate::Table;
 use crate::TableType;
 use crate::DataType;
@@ -90,7 +89,7 @@ impl Database {
     pub fn insert_entry<'a>(
         &mut self,
         table: &String,
-        mut entry: Entry,
+        entry: Entry,
     ) -> Result<(), String> {
         let output_tables = self.get_all_next_inserts(table);
         let transform = self.get_table_transform(table);
