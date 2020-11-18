@@ -50,7 +50,7 @@ fn main() -> io::Result<()> {
         //println!("{:?}", test_table.exact_get("first_column".to_string(), EntryValue::Integer(13)));
         println!("{:?}", test_table.exact_get("second_column".to_string(), EntryValue::Str("Test".to_string())));
         println!("{:?}", test_table.less_than("first_column".to_string(), EntryValue::Integer(14), true));
-    */
+
     //print!("{:?}",read_config_file("test_cfg.yaml".to_string()));
     let request = GetData {
         column: "testForIndex".to_string(),
@@ -82,7 +82,7 @@ fn main() -> io::Result<()> {
     let mut bytes = serialized_request.into_bytes();
     total_request.append(&mut bytes);
     print!("{}\n", String::from_utf8(total_request).unwrap());
-
+    */
     server::start_server()?;
 
     return Ok(());
