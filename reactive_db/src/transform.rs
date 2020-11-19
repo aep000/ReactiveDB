@@ -48,46 +48,9 @@ impl Transform {
             }
 
             Transform::Union(columns) => {
-                let mut foreign_value = None;
-                let mut foreign_key = None;
-                for (table, key) in columns {
-                    if table == source_table.unwrap() {
-                        foreign_value = match transaction.get(key) {
-                            Some(val) => Some(val),
-                            None => panic!("Foreign key column in transaction")
-                        };
-                        foreign_key = Some(key);
-                    }
-                }
-                //let table_obj =  db.tables.get(table_name).unwrap();
-                match db.delete_all(table_name, UNION_MATCHING_KEY.to_string(), foreign_value.unwrap().clone()){
-                    Ok(old_entries) => {
-                        if old_entries.len() > 0 {
-                            let mut old_entry = old_entries[0].clone();
-                            for (key, value) in transaction {
-                                old_entry.insert(key, value);
-                            }
-                            Some(old_entry)
-                        }
-                        else {
-                            let mut new_entry = transaction.clone();
-                            new_entry.remove(foreign_key.unwrap());
-                            new_entry.insert(UNION_MATCHING_KEY.to_string(), foreign_value.unwrap().clone());
-                            Some(new_entry)
-                        }
-                    }
-                    Err(e) =>{
-                        let mut new_entry = transaction.clone();
-                        new_entry.remove(foreign_key.unwrap());
-                        new_entry.insert(UNION_MATCHING_KEY.to_string(), foreign_value.unwrap().clone());
-                        Some(new_entry)
-                    }
-                }
-
-
-                //None
+                Transform::union_transform(columns, transaction, table_name, source_table.unwrap(), db)
             }
-            //TODO impliment Union and Aggregate
+            //TODO impliment Aggregate
             _ => None,
         }
     }
@@ -141,41 +104,44 @@ impl Transform {
     fn union_transform(
         table_foreign_key_pairs: &Vec<(String, String)>,
         transaction: Entry,
-        table_name: String,
+        table_name: &String,
+        source_table: &String,
         db: &mut Database,
-    ) -> std::result::Result<Entry, String> {
-        let dest_table = db.tables.get_mut(&table_name);
-        let mut foreign_key = "".to_string();
-        // This is slow and should be solved
-        for maybe_t in table_foreign_key_pairs {
-            if maybe_t.0.eq(&table_name) {
-                foreign_key = maybe_t.1.to_string();
-                break;
+    ) -> Option<Entry> {
+        let mut foreign_value = None;
+        let mut foreign_key = None;
+        for (table, key) in table_foreign_key_pairs {
+            if table == source_table {
+                foreign_value = match transaction.get(key) {
+                    Some(val) => Some(val),
+                    None => panic!("Foreign key column in transaction")
+                };
+                foreign_key = Some(key);
             }
         }
-        match dest_table {
-            Some(table) => {
-                let search_value = match transaction.get(&foreign_key) {
-                    Some(v) => Ok(v),
-                    None => Err(format!("Transaction missing key {}", table_name)),
-                }?;
-                let existing_entry_result = table.find_one(foreign_key, search_value);
-                match existing_entry_result {
-                    Ok(existing_entry_exists) => match existing_entry_exists {
-                        Some(mut existing_entry) => {
-                            for (k, v) in transaction {
-                                existing_entry.insert(k, v);
-                            }
-                            return Ok(existing_entry);
-                        }
-                        None => {
-                            return Ok(transaction);
-                        }
-                    },
-                    Err(e) => Err(format!("{:?}", e)),
+        //let table_obj =  db.tables.get(table_name).unwrap();
+        match db.delete_all(table_name, UNION_MATCHING_KEY.to_string(), foreign_value.unwrap().clone()){
+            Ok(old_entries) => {
+                if old_entries.len() > 0 {
+                    let mut old_entry = old_entries[0].clone();
+                    for (key, value) in transaction {
+                        old_entry.insert(key, value);
+                    }
+                    Some(old_entry)
+                }
+                else {
+                    let mut new_entry = transaction.clone();
+                    new_entry.remove(foreign_key.unwrap());
+                    new_entry.insert(UNION_MATCHING_KEY.to_string(), foreign_value.unwrap().clone());
+                    Some(new_entry)
                 }
             }
-            None => Err(format!("No table of name {}", table_name)),
+            Err(_) =>{
+                let mut new_entry = transaction.clone();
+                new_entry.remove(foreign_key.unwrap());
+                new_entry.insert(UNION_MATCHING_KEY.to_string(), foreign_value.unwrap().clone());
+                Some(new_entry)
+            }
         }
     }
 }

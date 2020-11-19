@@ -83,7 +83,7 @@ impl Database {
         };
         let mut to_delete: Vec<(String, EntryValue)> = vec![];
         let mut deleted = match table_obj.delete(column, &key) {
-            Ok(mut deleted) => {
+            Ok(deleted) => {
                 for output_table in &table_obj.output_tables {
                     for entry in &deleted {
                         to_delete.push((output_table.clone(), entry.get(ROW_ID_COLUMN_NAME).unwrap().clone()));

@@ -1,15 +1,15 @@
 #[cfg(test)]
 mod tests {
-    use crate::BTreeMap;
-use crate::Entry;
-use crate::EntryValue;
+    use std::collections::BTreeMap;
+    use crate::Entry;
+    use crate::EntryValue;
     use crate::Database;
     use crate::read_config_file;
     use std::fs;
     use rand::Rng;
     fn get_db(data_destination:String) -> Database{
-        fs::remove_dir_all(data_destination.clone());
-        fs::create_dir(data_destination.clone());
+        fs::remove_dir_all(data_destination.clone()).unwrap();
+        fs::create_dir(data_destination.clone()).unwrap();
         let config = read_config_file("test_cfg.yaml".to_string()).unwrap();
         Database::from_config(config, data_destination.clone()).unwrap()
     }

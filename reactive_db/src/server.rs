@@ -76,23 +76,23 @@ fn db_thread(request_reciever: Receiver<(DBRequest, Uuid)>, response_channel_rec
         match request {
             DBRequest::FindOne(request) => {
                 let found_one = db.find_one(&request.table, request.column, request.key);
-                response_channel.send(DBResponse::OneResult(found_one));
+                response_channel.send(DBResponse::OneResult(found_one)).unwrap();
             },
             DBRequest::LessThan(request) => {
                 let found_many = db.less_than_search(&request.table, request.column, request.key);
-                response_channel.send(DBResponse::ManyResults(found_many));
+                response_channel.send(DBResponse::ManyResults(found_many)).unwrap();
             },
             DBRequest::GreaterThan(request) => {
                 let found_many = db.greater_than_search(&request.table, request.column, request.key);
-                response_channel.send(DBResponse::ManyResults(found_many));
+                response_channel.send(DBResponse::ManyResults(found_many)).unwrap();
             },
             DBRequest::InsertData(request) => {
                 let results = db.insert_entry(&request.table, request.entry, None);
-                response_channel.send(DBResponse::NoResult(results));
+                response_channel.send(DBResponse::NoResult(results)).unwrap();
             },
             DBRequest::DeleteData(request) => {
                 let results = db.delete_all(&request.table, request.column, request.key);
-                response_channel.send(DBResponse::ManyResults(results));
+                response_channel.send(DBResponse::ManyResults(results)).unwrap();
             },
         };
     }

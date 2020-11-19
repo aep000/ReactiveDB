@@ -82,13 +82,6 @@ impl StorageManager {
         }
     }
 
-    pub fn free_allocated_block(&mut self, block: u32) {
-        if self.closed_blocks.contains(&block) {
-            self.closed_blocks.remove(&block);
-        }
-        self.open_blocks.push(-1 * block as isize);
-    }
-
     pub fn write_data(&mut self, data: Vec<u8>, starting_block: Option<u32>) -> io::Result<u32> {
         self.start_write_session()?;
         let root_block: u32 = match starting_block {

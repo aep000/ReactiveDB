@@ -1,4 +1,3 @@
-use crate::EntryValue;
 use serde_json::Result;
 use std::io;
 use std::io::{Cursor, Error, ErrorKind};
