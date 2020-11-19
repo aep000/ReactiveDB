@@ -33,7 +33,7 @@ impl ClientThread {
             stream.read(&mut size_buffer)?;
             let message_size = Cursor::new(size_buffer).read_u32::<BigEndian>().unwrap() as usize;
             if message_size == 0 {
-                continue;
+                return Ok(());
             }
             let mut message_buffer = vec![0; message_size];
             stream.read(&mut message_buffer)?;
@@ -87,7 +87,7 @@ fn db_thread(request_reciever: Receiver<(DBRequest, Uuid)>, response_channel_rec
                 response_channel.send(DBResponse::ManyResults(found_many));
             },
             DBRequest::InsertData(request) => {
-                let results = db.insert_entry(&request.table, request.entry);
+                let results = db.insert_entry(&request.table, request.entry, None);
                 response_channel.send(DBResponse::NoResult(results));
             },
             DBRequest::DeleteData(request) => {
@@ -109,7 +109,7 @@ pub fn start_server() -> std::io::Result<()> {
     thread::spawn(move ||  { 
         match db_thread(db_request_reciever, db_response_channel_reciever) {
             Ok(()) => panic!("Server closing!"),
-            Err(e) => panic!(e)
+            Err(e) => panic!("{:?}",e)
         };
     });
     

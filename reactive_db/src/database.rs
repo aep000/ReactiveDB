@@ -1,3 +1,5 @@
+use crate::constants::SOURCE_ENTRY_ID;
+use crate::constants::ROW_ID_COLUMN_NAME;
 use crate::config::parser::parse_transform_config;
 use crate::types::Entry;
 use crate::config::config_reader::{DbConfig, TableConfig};
@@ -79,10 +81,22 @@ impl Database {
             Some(t) => t,
             None => Err(format!("Unable to find table {}", table))?,
         };
-        match table_obj.delete(column, &key) {
-            Ok(deleted) => Ok(deleted),
-            Err(e) => Err(format!("Error when deleting for entries {}", e)),
+        let mut to_delete: Vec<(String, EntryValue)> = vec![];
+        let mut deleted = match table_obj.delete(column, &key) {
+            Ok(mut deleted) => {
+                for output_table in &table_obj.output_tables {
+                    for entry in &deleted {
+                        to_delete.push((output_table.clone(), entry.get(ROW_ID_COLUMN_NAME).unwrap().clone()));
+                    }
+                }
+                deleted
+            },
+            Err(e) => Err(format!("Error when deleting for entries {}", e))?,
+        };
+        for (table, id) in to_delete {
+            deleted.append(&mut self.delete_all(&table, SOURCE_ENTRY_ID.to_string(), id)?);
         }
+        Ok(deleted)
     }
 
     // TODO clean this dumpster fire
@@ -90,11 +104,12 @@ impl Database {
         &mut self,
         table: &String,
         entry: Entry,
+        source_table: Option<&String>
     ) -> Result<(), String> {
         let output_tables = self.get_all_next_inserts(table);
         let transform = self.get_table_transform(table);
         let entry = match transform {
-            Some(transform) => transform.execute(entry, table, self),
+            Some(transform) => transform.execute(entry, table, self, source_table),
             None => Some(entry),
         };
 
@@ -108,6 +123,7 @@ impl Database {
                                     self.insert_entry(
                                         &output_table,
                                         inserted_entry_unwrapped.clone(),
+                                        Some(table)
                                     )?;
                                 }
                                 ()
@@ -121,7 +137,6 @@ impl Database {
             }
             None => Err(format!("Unable to find table {}", table))?,
         };
-
         return Ok(());
     }
 

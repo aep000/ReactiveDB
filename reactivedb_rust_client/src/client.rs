@@ -39,7 +39,6 @@ impl Client {
         total_request.write_u32::<BigEndian>(serialized_request.len() as u32)?;
         let mut bytes = serialized_request.into_bytes();
         total_request.append(&mut bytes);
-        print!("\n{:?}\n", total_request);
         stream.write(total_request.as_slice())?;
 
         let mut size_buffer = [0; 4];

@@ -11,5 +11,14 @@ tables:
       columns:
         testForIndex: Integer
         testForIteration: Integer
+  - Derived:
+      name: unionTest
+      transform_definition:
+        UnionTransform:
+          tables_and_foreign_keys:
+          - - derived
+            - newColumn
+          - - testTable
+            - testForIndex
 
 storage_destination: db/random/

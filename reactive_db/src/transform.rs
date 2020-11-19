@@ -1,3 +1,4 @@
+use crate::constants::UNION_MATCHING_KEY;
 use crate::constants::SOURCE_ENTRY_ID;
 use crate::constants::ROW_ID_COLUMN_NAME;
 use crate::database::Database;
@@ -22,7 +23,8 @@ impl Transform {
         &self,
         transaction: Entry,
         table_name: &String,
-        db: &Database,
+        db: &mut Database,
+        source_table: Option<&String>
     ) -> Option<Entry> {
         match self {
             Transform::Function(statments) => {
@@ -42,6 +44,47 @@ impl Transform {
                         return None;
                     }
                 }
+            }
+
+            Transform::Union(columns) => {
+                let mut foreign_value = None;
+                let mut foreign_key = None;
+                for (table, key) in columns {
+                    if table == source_table.unwrap() {
+                        foreign_value = match transaction.get(key) {
+                            Some(val) => Some(val),
+                            None => panic!("Foreign key column in transaction")
+                        };
+                        foreign_key = Some(key);
+                    }
+                }
+                //let table_obj =  db.tables.get(table_name).unwrap();
+                match db.delete_all(table_name, UNION_MATCHING_KEY.to_string(), foreign_value.unwrap().clone()){
+                    Ok(old_entries) => {
+                        if old_entries.len() > 0 {
+                            let mut old_entry = old_entries[0].clone();
+                            for (key, value) in transaction {
+                                old_entry.insert(key, value);
+                            }
+                            Some(old_entry)
+                        }
+                        else {
+                            let mut new_entry = transaction.clone();
+                            new_entry.remove(foreign_key.unwrap());
+                            new_entry.insert(UNION_MATCHING_KEY.to_string(), foreign_value.unwrap().clone());
+                            Some(new_entry)
+                        }
+                    }
+                    Err(e) =>{
+                        let mut new_entry = transaction.clone();
+                        new_entry.remove(foreign_key.unwrap());
+                        new_entry.insert(UNION_MATCHING_KEY.to_string(), foreign_value.unwrap().clone());
+                        Some(new_entry)
+                    }
+                }
+
+
+                //None
             }
             //TODO impliment Union and Aggregate
             _ => None,

@@ -32,7 +32,7 @@ use crate::EntryValue;
             if n < 5 {
                 entries.push(entry_to_insert.build());
             }
-            db.insert_entry(&"testTable".to_string(), entry_to_insert.build()).unwrap();
+            db.insert_entry(&"testTable".to_string(), entry_to_insert.build(), None).unwrap();
         }
         // Test source 
         let results = db.find_one(&"testTable".to_string(), "testForIteration".to_string(), EntryValue::Integer(15)).unwrap().unwrap();
@@ -69,7 +69,7 @@ use crate::EntryValue;
             if n < 5 {
                 entries.push(entry_to_insert.build());
             }
-            db.insert_entry(&"testTable".to_string(), entry_to_insert.build()).unwrap();
+            db.insert_entry(&"testTable".to_string(), entry_to_insert.build(), None).unwrap();
         }
         // Test source 
         let results = db.less_than_search(&"testTable".to_string(), "testForIteration".to_string(), EntryValue::Integer(5)).unwrap();
@@ -93,7 +93,7 @@ use crate::EntryValue;
             if n >= 10 {
                 entries.push(entry_to_insert.build());
             }
-            db.insert_entry(&"testTable".to_string(), entry_to_insert.build()).unwrap();
+            db.insert_entry(&"testTable".to_string(), entry_to_insert.build(), None).unwrap();
         }
         // Test source 
         let results = db.greater_than_search(&"testTable".to_string(), "testForIteration".to_string(), EntryValue::Integer(10)).unwrap();

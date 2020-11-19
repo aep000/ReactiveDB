@@ -1,3 +1,4 @@
+use crate::EntryValue;
 use serde_json::Result;
 use std::io;
 use std::io::{Cursor, Error, ErrorKind};
@@ -65,6 +66,16 @@ impl BTree {
                     }
                 };
             deleted = deleted_entry;
+        }
+        if self.storage_manager.is_empty(1)? {
+            let root_node = Node {
+                leaf: true,
+                entries: vec![],
+                next_node: 0,
+            };
+            println!("DELETED ROOT");
+            let root_node_encoded = unwrap_encode(&root_node);
+            self.storage_manager.write_data(root_node_encoded, Some(1))?;
         }
         self.storage_manager.end_session();
         Ok(deleted_indexes)
@@ -359,6 +370,9 @@ impl BTree {
                 self.storage_manager
                     .write_data(serde_json::to_vec(&current_node)?, Some(current_node_ref))?;
             }
+            if current_node.entries.len() == 0 {
+                return Ok((false, deleted, IndexValue::Integer(0)));
+            }
             return Ok((false, deleted, current_node.entries[0].index.clone()));
         }
         let mut found_index: usize = match current_node.entries.binary_search(index) {
@@ -450,7 +464,22 @@ impl BTree {
         let current_node: Result<Node> = serde_json::from_reader(Cursor::new(current_node_raw));
         return match current_node {
             Ok(node) => Ok(node),
-            Err(_) => Err(Error::new(ErrorKind::Other, "Error Decoding Node")),
+            Err(_) => {
+                if location == 1 {
+                    let root_node = Node {
+                        leaf: true,
+                        entries: vec![],
+                        next_node: 0,
+                    };
+                    println!("DELETED ROOT");
+                    let root_node_encoded = unwrap_encode(&root_node);
+                    self.storage_manager.write_data(root_node_encoded, Some(1))?;
+                    Ok(root_node)
+                }
+                else{
+                    Err(Error::new(ErrorKind::Other, format!("Error Decoding Node for: {:?}", self.storage_manager.file_name)))
+                }
+            },
         };
     }
 
