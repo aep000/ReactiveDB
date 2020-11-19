@@ -33,7 +33,7 @@ pub fn parse_transform_config(config: TransformTableConfig, storage_path: String
         TransformType::FilterTransform(config) => {
             columns.push(Column::new("_sourceEntryId".to_string(), DataType::ID));
             let statement = Statement::new_comparison(config.filter)?;
-            input_tables.push(config.soure_table);
+            input_tables.push(config.source_table);
             Transform::Filter(statement)
         }
         TransformType::UnionTransform(config) => {

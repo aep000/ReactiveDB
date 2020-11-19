@@ -37,6 +37,7 @@ impl Transform {
                 }
             }
             Transform::Filter(statement) => {
+                println!("Performing filter {:?}", statement);
                 match Transform::filter_transform(statement, transaction) {
                     Ok(entry) => entry,
                     Err(something) => {
@@ -120,6 +121,7 @@ impl Transform {
         match statement {
             Statement::Comparison(expr) => {
                 let result = execute_expression(&transaction, expr)?;
+                println!("Performing filter {:?}", result);
                 match result {
                     EntryValue::Bool(b) => {
                         if b {

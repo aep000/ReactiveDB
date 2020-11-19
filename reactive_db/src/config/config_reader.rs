@@ -49,7 +49,7 @@ pub struct UnionTransformConfig {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FilterTransformConfig {
-    pub soure_table: String,
+    pub source_table: String,
     pub filter: String,
 }
 

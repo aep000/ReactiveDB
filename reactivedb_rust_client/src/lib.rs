@@ -12,8 +12,8 @@ use crate::types::EntryValue;
         let mut client = Client::new("127.0.0.1:1108");
         client.open_connection().unwrap();
         let mut entry_builder = EntryBuilder::new();
-        entry_builder.column("testForIndex", EntryValue::Integer(11));
-        entry_builder.column("testForIteration", EntryValue::Integer(11));
+        entry_builder.column("testForIndex", EntryValue::Integer(8));
+        entry_builder.column("testForIteration", EntryValue::Integer(18));
 
         let insert_request = DBRequest::new_insert("testTable".to_string(), entry_builder.build());
         print!("\n{:?}\n", insert_request);
