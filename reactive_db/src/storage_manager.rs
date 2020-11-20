@@ -137,6 +137,10 @@ impl StorageManager {
             output.extend(data_block);
             
         }
+        
+        if output == vec![0; output.len()]{
+            return Ok(output);
+        }
         let mut decompressed = vec![];
         BzDecoder::new(output.as_slice()).read_to_end(&mut decompressed).unwrap();
         return Ok(trim(&decompressed));

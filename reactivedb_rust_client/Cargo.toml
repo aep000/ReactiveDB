@@ -7,6 +7,10 @@ edition = "2018"
 [[bin]]
 name = "benchmark"
 
+
+[[bin]]
+name = "usage_example"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
