@@ -28,7 +28,10 @@ impl ClientThread {
         };
     }
     fn start(&self, mut stream: TcpStream) -> std::io::Result<()> {
+        let mut n = 0;
         loop {
+            n+=1;
+            print!("\rconnection id: {} | request count: {}", self.id, n);
             let mut size_buffer = [0; 4];
             stream.read(&mut size_buffer)?;
             let message_size = Cursor::new(size_buffer).read_u32::<BigEndian>().unwrap() as usize;
@@ -38,7 +41,7 @@ impl ClientThread {
             let mut message_buffer = vec![0; message_size];
             stream.read(&mut message_buffer)?;
             let json_result: serde_json::Result<DBRequest> = serde_json::from_slice(message_buffer.as_slice());
-            println!("{:?}", size_buffer);
+            //println!("{:?}", size_buffer);
             // Request db thread for results
             let _ = match json_result {
                 Ok(request) => self.db_request_channel.send((request, self.id)),

@@ -1,3 +1,5 @@
+use bzip2::read::BzDecoder;
+use bzip2::read::BzEncoder;
 use crate::io::Cursor;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::cmp;
@@ -11,6 +13,7 @@ use std::io::BufReader;
 use std::io::BufWriter;
 use std::io::SeekFrom;
 use std::io::{Error, ErrorKind};
+use bzip2::Compression;
 
 const DATA_BLOCK_SIZE: u32 = 100;
 const REFERENCE_BLOCK_SIZE: u32 = 4;
@@ -83,6 +86,9 @@ impl StorageManager {
     }
 
     pub fn write_data(&mut self, data: Vec<u8>, starting_block: Option<u32>) -> io::Result<u32> {
+        let mut compressed = vec![];
+        BzEncoder::new(data.as_slice(), Compression::Default).read_to_end(&mut compressed).unwrap();
+        let data = compressed;
         self.start_write_session()?;
         let root_block: u32 = match starting_block {
             Some(n) => {
@@ -127,13 +133,13 @@ impl StorageManager {
             let data_block = &raw_block[..DATA_BLOCK_SIZE as usize].to_vec();
             let next_block_raw = raw_block[(DATA_BLOCK_SIZE) as usize..].to_vec();
             block_to_read = Cursor::new(next_block_raw).read_u32::<BigEndian>().unwrap() as usize;
-            if block_to_read == 0 {
-                output.extend(trim(data_block));
-            } else {
-                output.extend(data_block);
-            }
+            
+            output.extend(data_block);
+            
         }
-        return Ok(output);
+        let mut decompressed = vec![];
+        BzDecoder::new(output.as_slice()).read_to_end(&mut decompressed).unwrap();
+        return Ok(trim(&decompressed));
     }
 
     pub fn delete_data(&mut self, starting_block: u32) -> io::Result<()> {
@@ -183,7 +189,6 @@ impl StorageManager {
 
         let mut reader = BufReader::with_capacity(TOTAL_BLOCK_SIZE as usize, file);
         let buffer = reader.fill_buf()?;
-
         return Ok(buffer.to_vec());
     }
 

@@ -7,6 +7,16 @@ tables:
           functions:
             - newColumn ~ testForIteration + 2
   - Source:
+      name: users
+      columns:
+        name: Str
+        age: Integer
+  - Source:
+      name: grades
+      columns:
+        name: Str
+        grade: Integer
+  - Source:
       name: testTable
       columns:
         testForIndex: Integer
@@ -16,10 +26,10 @@ tables:
       transform_definition:
         UnionTransform:
           tables_and_foreign_keys:
-          - - derived
-            - newColumn
-          - - testTable
-            - testForIndex
+          - - users
+            - name
+          - - grades
+            - name
   - Derived:
       name: filterTest
       transform_definition:

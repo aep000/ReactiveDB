@@ -23,4 +23,3 @@ fn main() -> io::Result<()> {
     server::start_server()?;
     return Ok(());
 }
-

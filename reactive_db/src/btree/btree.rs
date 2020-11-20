@@ -72,7 +72,6 @@ impl BTree {
                 entries: vec![],
                 next_node: 0,
             };
-            println!("DELETED ROOT");
             let root_node_encoded = unwrap_encode(&root_node);
             self.storage_manager.write_data(root_node_encoded, Some(1))?;
         }
@@ -418,8 +417,8 @@ impl BTree {
                     if index < &current_node.entries[found_index as usize] {
                         current_node.entries.remove(found_index);
                     } else {
-                        current_node.entries[found_index as usize - 1].right_ref =
-                            current_node.entries[found_index as usize].right_ref;
+                        current_node.entries[found_index as usize + 1].left_ref =
+                            current_node.entries[found_index as usize].left_ref;
                         current_node.entries.remove(found_index);
                     }
                 } else {
@@ -470,7 +469,6 @@ impl BTree {
                         entries: vec![],
                         next_node: 0,
                     };
-                    println!("DELETED ROOT");
                     let root_node_encoded = unwrap_encode(&root_node);
                     self.storage_manager.write_data(root_node_encoded, Some(1))?;
                     Ok(root_node)

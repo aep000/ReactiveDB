@@ -8,7 +8,6 @@ use crate::types::EntryValue;
     use crate::types::DBRequest;
     use crate::client::Client;
     // DO NOT RUN THESE TESTS
-    #[test]
     fn test_insert() {
         let mut client = Client::new("127.0.0.1:1108");
         client.open_connection().unwrap();
@@ -26,9 +25,10 @@ use crate::types::EntryValue;
     fn test_find_one() {
         let mut client = Client::new("127.0.0.1:1108");
         client.open_connection().unwrap();
-        let find_one_request = DBRequest::new_find_one("testTable".to_string(), "testForIndex".to_string(), EntryValue::Integer(11));
-        print!("\n{:?}\n", find_one_request);
+        let find_one_request = DBRequest::new_find_one("testTable".to_string(), "testForIteration".to_string(), EntryValue::Integer(750));
         let response = client.make_request(find_one_request).unwrap();
+        print!("\n{:?}\n", response);
+/*
         match response {
             DBResponse::OneResult(response) => {
                 let entry = response.unwrap().unwrap();
@@ -37,10 +37,9 @@ use crate::types::EntryValue;
             },
             _ => panic!("Too many responses")
 
-        }
+        }*/
     }
 
-    #[test]
     fn delete_all() {
         let mut client = Client::new("127.0.0.1:1108");
         client.open_connection().unwrap();
