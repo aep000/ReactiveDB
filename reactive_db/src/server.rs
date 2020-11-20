@@ -62,8 +62,8 @@ impl ClientThread {
     }
 }
 
-fn db_thread(request_reciever: Receiver<(DBRequest, Uuid)>, response_channel_reciever: Receiver<(Sender<DBResponse>, Uuid)>) -> std::io::Result<()>{
-    let config = read_config_file("test_cfg.yaml".to_string())?;
+fn db_thread(request_reciever: Receiver<(DBRequest, Uuid)>, response_channel_reciever: Receiver<(Sender<DBResponse>, Uuid)>, config_file: String) -> std::io::Result<()>{
+    let config = read_config_file(config_file.to_string())?;
     let db = Database::from_config(config, "db/".to_string());
     let mut db = match db {
         Ok(db) => db,
@@ -102,15 +102,16 @@ fn db_thread(request_reciever: Receiver<(DBRequest, Uuid)>, response_channel_rec
     Ok(())
 }
 
-pub fn start_server() -> std::io::Result<()> {
-    let listener = TcpListener::bind("127.0.0.1:1108")?;
+#[tokio::main]
+pub async fn start_server(port: String, config_file: String) -> std::io::Result<()> {
+    let listener = TcpListener::bind(format!("127.0.0.1:{}", port))?;
 
     let (db_request_sender, db_request_reciever) = channel();
 
     let (db_response_channel_sender, db_response_channel_reciever) = channel();
 
     thread::spawn(move ||  { 
-        match db_thread(db_request_reciever, db_response_channel_reciever) {
+        match db_thread(db_request_reciever, db_response_channel_reciever, config_file) {
             Ok(()) => panic!("Server closing!"),
             Err(e) => panic!("{:?}",e)
         };
@@ -122,7 +123,7 @@ pub fn start_server() -> std::io::Result<()> {
         let thread_db_request_copy = db_request_sender.clone();
         let (db_result_sender, db_result_reciever) = channel();
         db_response_channel_sender.send((db_result_sender, client_id.clone())).unwrap();
-        thread::spawn(move || -> std::io::Result<()>  { 
+        tokio::spawn(async move { 
             let client_thread = ClientThread::new(client_id, thread_db_request_copy, db_result_reciever);
             client_thread.start(stream?)
         });

@@ -9,6 +9,7 @@ mod tests;
 mod config;
 mod server;
 
+use std::time::Duration;
 use crate::btree::btree::BTree;
 use crate::btree::node::IndexValue;
 use crate::config::config_reader::read_config_file;
@@ -19,7 +20,11 @@ use crate::table::{Column, Table, TableType};
 use crate::transform::Transform;
 use crate::types::{DataType, EntryValue, Entry};
 use std::io;
+use std::env;
+use std::thread;
+
 fn main() -> io::Result<()> {
-    server::start_server()?;
+    let args: Vec<String> = env::args().collect();
+    server::start_server(args[1].clone(), args[2].clone()).unwrap();
     return Ok(());
 }

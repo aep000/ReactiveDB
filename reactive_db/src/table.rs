@@ -65,7 +65,7 @@ impl Table {
         match table_type {
             TableType::Derived(_) => {
                 entry_storage_manager.start_read_session()?;
-                match entry_storage_manager.read_data(3) {
+                match entry_storage_manager.read_data(2) {
                     Ok(raw_entry) => {
                         entry_storage_manager.end_session();
                         let entry: Result<Entry> =
