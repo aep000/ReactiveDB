@@ -3,7 +3,7 @@ pub mod client;
 #[cfg(test)]
 mod tests {
     use crate::types::DBResponse;
-use crate::types::EntryValue;
+    use crate::types::EntryValue;
     use crate::types::EntryBuilder;
     use crate::types::DBRequest;
     use crate::client::Client;

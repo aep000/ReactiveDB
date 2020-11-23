@@ -32,7 +32,7 @@ pub struct Table {
     pub input_tables: Vec<String>,
     indexes: Vec<BTree>,
     entry_storage_manager: StorageManager,
-    path: String
+    path: String,
 }
 
 impl Column {

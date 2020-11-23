@@ -8,6 +8,9 @@ mod constants;
 mod tests;
 mod config;
 mod server;
+mod client_connection;
+mod db_thread;
+
 
 use std::time::Duration;
 use crate::btree::btree::BTree;
