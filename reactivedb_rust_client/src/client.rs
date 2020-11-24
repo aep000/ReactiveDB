@@ -105,13 +105,42 @@ impl Client {
                 match receiver.recv().await.unwrap() {
                     ToClientMessage::RequestResponse(_) => {},
                     ToClientMessage::Event(event) => {
-                        callback(event.value);
+                        let _ = callback(event.value);
                     }
                 }
             }
         });
-
         Ok(())
+    }
+
+    pub async fn subscribe_to_event_blocking(&mut self, table_name: String, event: ListenEvent, callback: Box<dyn Fn(DBResponse) -> Result<(), ()> + Send>)-> io::Result<()>{
+        let request = DBRequest::new_listen(table_name, event);
+        match &mut self.connection {
+            Some(stream) => {
+                let serialized_request = serde_json::to_string(&request).unwrap();
+                let mut total_request: Vec<u8> = vec![];
+                WriteBytesExt::write_u32::<BigEndian>(&mut total_request, serialized_request.len() as u32)?;
+                let mut bytes = serialized_request.into_bytes();
+                total_request.append(&mut bytes);
+                stream.write(total_request.as_slice()).await?;
+            },
+            None => Err(Error::new(ErrorKind::Other, "Connection to server not open"))?
+        };
+
+        let mut receiver = match &mut self.response_subscribe_channel {
+            Some(subscription_maker)=> {
+                subscription_maker.subscribe().await
+            }
+            None => Err(Error::new(ErrorKind::Other, "Connection to server not open"))?
+        };
+        loop {
+            match receiver.recv().await.unwrap() {
+                ToClientMessage::RequestResponse(_) => {},
+                ToClientMessage::Event(event) => {
+                    let _ = callback(event.value);
+                }
+            }
+        }
     }
 
     async fn listen_for_messages(mut stream: ReadHalf<TcpStream>, mut subscription_manager: SubscriptionManager<ToClientMessage>){
@@ -142,7 +171,7 @@ impl <T> SubscriptionMaker<T> {
         let (sub_sender, sub_reciever) = channel(30);
         match self.add_sub_channel.send(sub_sender).await {
             Ok(()) => {},
-            Err(e) => panic!("Channel Dropped")
+            Err(_) => panic!("Channel Dropped")
         };
         return sub_reciever;
     }

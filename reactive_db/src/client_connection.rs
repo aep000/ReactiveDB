@@ -74,7 +74,7 @@ pub struct RequestResponse{
     pub response: DBResponse
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum ListenEvent {
     Insert,
     Delete
@@ -86,7 +86,7 @@ pub enum ToClientMessage {
     RequestResponse(RequestResponse)
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ListenRequest {
     pub table_name: String,
     pub event: ListenEvent,

@@ -2,6 +2,7 @@
 **PythonMVP/venv/**
 **/reactive_db/target/**
 **/.vscode/**
+**/venv/**
 
 **.pyc
 **.index

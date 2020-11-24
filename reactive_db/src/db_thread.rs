@@ -78,6 +78,7 @@ pub fn start_db_thread(mut request_reciever: Receiver<(DBRequest, Uuid)>, mut re
                 }
             },
             DBRequest::StartListen(listen_request) => {
+                println!("Adding Listener {:?}", listen_request);
                 db.add_listener(listen_request, client_id);
             }
         };

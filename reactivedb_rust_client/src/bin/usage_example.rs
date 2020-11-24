@@ -33,4 +33,5 @@ async fn main() {
 
     let ten_millis = time::Duration::from_millis(100);    
     thread::sleep(ten_millis);
+    println!("{:?}", serde_json::to_string(&DBRequest::new_listen("table name".to_string(), ListenEvent::Insert)));
 }
