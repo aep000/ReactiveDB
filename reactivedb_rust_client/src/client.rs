@@ -1,3 +1,6 @@
+use crate::types::ListenEvent;
+use crate::types::Entry;
+use crate::types::ListenRequest;
 use std::future::Future;
 use tokio::io::{WriteHalf, ReadHalf};
 use crate::types::ClientRequest;
@@ -47,7 +50,7 @@ impl Client {
 
     pub async fn make_request(&mut self, client_request: ClientRequest) -> io::Result<DBResponse>{
         let (request, request_id) = client_request;
-        let stream = match &mut self.connection {
+        match &mut self.connection {
             Some(stream) => {
                 let serialized_request = serde_json::to_string(&request).unwrap();
                 let mut total_request: Vec<u8> = vec![];
@@ -58,20 +61,12 @@ impl Client {
             },
             None => Err(Error::new(ErrorKind::Other, "Connection to server not open"))?
         };
-        let matches_request_id = move |message: ToClientMessage|-> bool{
-            match message {
-                ToClientMessage::RequestResponse(response) => response.request_id == request_id,
-                _ => false
-            }
-        };
-        print!("Subscribing");
         let mut receiver = match &mut self.response_subscribe_channel {
             Some(subscription_maker)=> {
                 subscription_maker.subscribe().await
             }
             None => Err(Error::new(ErrorKind::Other, "Connection to server not open"))?
         };
-        print!("Waiting for response");
         loop {
             match receiver.recv().await.unwrap() {
                 ToClientMessage::RequestResponse(response) => {
@@ -83,6 +78,40 @@ impl Client {
             }
         }
 
+    }
+
+    pub async fn subscribe_to_event(&mut self, table_name: String, event: ListenEvent, callback: Box<dyn Fn(DBResponse) -> Result<(), ()> + Send>)-> io::Result<()>{
+        let request = DBRequest::new_listen(table_name, event);
+        match &mut self.connection {
+            Some(stream) => {
+                let serialized_request = serde_json::to_string(&request).unwrap();
+                let mut total_request: Vec<u8> = vec![];
+                WriteBytesExt::write_u32::<BigEndian>(&mut total_request, serialized_request.len() as u32)?;
+                let mut bytes = serialized_request.into_bytes();
+                total_request.append(&mut bytes);
+                stream.write(total_request.as_slice()).await?;
+            },
+            None => Err(Error::new(ErrorKind::Other, "Connection to server not open"))?
+        };
+
+        let mut receiver = match &mut self.response_subscribe_channel {
+            Some(subscription_maker)=> {
+                subscription_maker.subscribe().await
+            }
+            None => Err(Error::new(ErrorKind::Other, "Connection to server not open"))?
+        };
+        tokio::spawn(async move {
+            loop {
+                match receiver.recv().await.unwrap() {
+                    ToClientMessage::RequestResponse(_) => {},
+                    ToClientMessage::Event(event) => {
+                        callback(event.value);
+                    }
+                }
+            }
+        });
+
+        Ok(())
     }
 
     async fn listen_for_messages(mut stream: ReadHalf<TcpStream>, mut subscription_manager: SubscriptionManager<ToClientMessage>){

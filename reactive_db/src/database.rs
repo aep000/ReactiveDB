@@ -1,4 +1,4 @@
-use std::sync::mpsc::Sender;
+use tokio::sync::mpsc::Sender;
 use crate::client_connection::{ToClientMessage, ListenResponse, ListenRequest, DBResponse};
 use uuid::Uuid;
 use crate::constants::SOURCE_ENTRY_ID;
@@ -106,7 +106,7 @@ impl Database {
                                                             event: ListenEvent::Delete,
                                                             value: DBResponse::OneResult(Ok(Some(entry.clone()))),
                                                         });
-                                                        channel.send(msg).unwrap();
+                                                        channel.blocking_send(msg);
                                                     },
                                                     None => {}
                                                 }   
@@ -156,7 +156,7 @@ impl Database {
                                                 event: ListenEvent::Insert,
                                                 value: DBResponse::OneResult(Ok(Some(entry_clone))),
                                             });
-                                            channel.send(msg).unwrap();
+                                            channel.blocking_send(msg);
                                         },
                                         None => {}
                                     }
