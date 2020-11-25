@@ -3,6 +3,8 @@
 **/reactive_db/target/**
 **/.vscode/**
 **/venv/**
+**/build/**
+
 
 **.pyc
 **.index

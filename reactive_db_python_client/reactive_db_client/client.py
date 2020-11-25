@@ -98,8 +98,6 @@ class ClientAsync:
             self.writer.write(message_size)
             self.writer.write(bytes(request_string,"utf-8"))
             while True:
-                print("Doing something")
-                await asyncio.sleep(1)
                 response = await self.event_queues[(table_name, event)].get()
                 self.event_queues[(table_name, event)].task_done()
                 if await callback(response):

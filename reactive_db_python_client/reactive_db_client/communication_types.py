@@ -1,7 +1,7 @@
 import uuid
 
 def dict_to_serialized_entry(source):
-    for key in source.keys:
+    for key in source.keys():
         source[key] = value_to_entry_value(source[key])
     return source
 

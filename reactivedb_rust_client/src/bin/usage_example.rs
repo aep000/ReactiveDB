@@ -4,7 +4,6 @@ use reactivedb_rust_client::types::EntryBuilder;
 use reactivedb_rust_client::types::EntryValue;
 use reactivedb_rust_client::types::ListenEvent;
 use reactivedb_rust_client::client::Client;
-use std::{thread, time};
 #[tokio::main]
 async fn main() {
     
@@ -30,8 +29,4 @@ async fn main() {
                 EntryValue::Str("Alex".to_string())
             )).await.unwrap();
         println!("{:?}", result);
-
-    let ten_millis = time::Duration::from_millis(100);    
-    thread::sleep(ten_millis);
-    println!("{:?}", serde_json::to_string(&DBRequest::new_listen("table name".to_string(), ListenEvent::Insert)));
 }
