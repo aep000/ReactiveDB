@@ -22,8 +22,6 @@ use crate::transform::Transform;
 use crate::types::{DataType, Entry, EntryValue};
 use std::env;
 use std::io;
-use std::thread;
-use std::time::Duration;
 
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();

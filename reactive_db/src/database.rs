@@ -121,7 +121,7 @@ impl Database {
                                                                 entry.clone(),
                                                             ))),
                                                         });
-                                                    channel.blocking_send(msg);
+                                                    let _ = channel.blocking_send(msg);
                                                 }
                                                 None => {}
                                             }
@@ -169,7 +169,7 @@ impl Database {
                                         event: ListenEvent::Insert,
                                         value: DBResponse::OneResult(Ok(Some(entry_clone))),
                                     });
-                                    channel.blocking_send(msg);
+                                    let _ = channel.blocking_send(msg);
                                 }
                                 None => {}
                             },

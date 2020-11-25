@@ -30,9 +30,12 @@ pub async fn start_server(port: String, config_file: String) -> std::io::Result<
         let client_id = Uuid::new_v4();
         let thread_db_request_copy = db_request_sender.clone();
         let (db_result_sender, db_result_reciever) = channel(30);
-        db_response_channel_sender
+        match db_response_channel_sender
             .send((db_result_sender, client_id.clone()))
-            .await;
+            .await {
+                Ok(_) => {},
+                Err(_) => {continue}
+            };
         tokio::spawn(async move {
             client_connection::start_client_thread(
                 client_id,
@@ -42,5 +45,4 @@ pub async fn start_server(port: String, config_file: String) -> std::io::Result<
             );
         });
     }
-    Ok(())
 }

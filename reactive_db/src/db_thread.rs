@@ -1,5 +1,5 @@
 use crate::client_connection::{
-    DBRequest, DBResponse, Query, QueryRequest, RequestResponse, ToClientMessage,
+    DBRequest, DBResponse, Query, RequestResponse, ToClientMessage,
 };
 use crate::read_config_file;
 use crate::Database;
@@ -46,7 +46,7 @@ pub fn start_db_thread(
                             request_id: id,
                             response: DBResponse::OneResult(found_one),
                         });
-                        response_channel.blocking_send(response);
+                        let _ = response_channel.blocking_send(response);
                     }
                     Query::LessThan(request) => {
                         let found_many =
@@ -55,7 +55,7 @@ pub fn start_db_thread(
                             request_id: id,
                             response: DBResponse::ManyResults(found_many),
                         });
-                        response_channel.blocking_send(response);
+                        let _ = response_channel.blocking_send(response);
                     }
                     Query::GreaterThan(request) => {
                         let found_many =
@@ -64,7 +64,7 @@ pub fn start_db_thread(
                             request_id: id,
                             response: DBResponse::ManyResults(found_many),
                         });
-                        response_channel.blocking_send(response);
+                        let _ = response_channel.blocking_send(response);
                     }
                     Query::InsertData(request) => {
                         let results = db.insert_entry(&request.table, request.entry, None);
@@ -72,7 +72,7 @@ pub fn start_db_thread(
                             request_id: id,
                             response: DBResponse::NoResult(results),
                         });
-                        response_channel.blocking_send(response);
+                        let _ = response_channel.blocking_send(response);
                     }
                     Query::DeleteData(request) => {
                         let results = db.delete_all(&request.table, request.column, request.key);
@@ -80,15 +80,13 @@ pub fn start_db_thread(
                             request_id: id,
                             response: DBResponse::ManyResults(results),
                         });
-                        response_channel.blocking_send(response);
+                        let _ = response_channel.blocking_send(response);
                     }
                 }
             }
             DBRequest::StartListen(listen_request) => {
-                println!("Adding Listener {:?}", listen_request);
                 db.add_listener(listen_request, client_id);
             }
         };
     }
-    Ok(())
 }

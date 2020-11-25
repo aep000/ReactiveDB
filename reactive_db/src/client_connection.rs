@@ -3,11 +3,10 @@ use crate::EntryValue;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
-use std::thread;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::io::{ReadHalf, WriteHalf};
 use tokio::net::TcpStream;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::mpsc::{Receiver, Sender};
 use uuid::Uuid;
 
 pub fn start_client_thread(
@@ -39,8 +38,14 @@ async fn handle_results(
         };
         let mut buff = vec![];
         WriteBytesExt::write_u32::<BigEndian>(&mut buff, serialized_result.len() as u32).unwrap();
-        stream.write(buff.as_slice()).await.unwrap();
-        stream.write(serialized_result.as_slice()).await.unwrap();
+        match stream.write(buff.as_slice()).await {
+            Ok(_) =>{},
+            Err(_) => {break}
+        };
+        match stream.write(serialized_result.as_slice()).await {
+            Ok(_) =>{},
+            Err(_) => {break}
+        };
     }
 }
 
