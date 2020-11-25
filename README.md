@@ -7,6 +7,9 @@ This is very early in development and I would not use this for anything serious.
 ## Concepts
 This database centers on the idea that instead of computing changes to data as you need it, you should compute changes as you recieve it.
 
+## Getting started
+To run this very early version go into reactive_db/ and run `cargo run 1108 test_cfg.yaml` then use either the python client or the rust client (Samples are under `examples/sample.py` and `src/bin/usage_example.rs` respectively) to interact with the database. 
+
 ### Source Table
 A table that you can directly insert raw data into. Defined in the config file like below:
 ```yaml
@@ -52,6 +55,3 @@ UnionTransform:
   - - table2
     - column2
  ```
-
-## Getting started
-To run this very early version go into reactive_db/ and run `cargo run 1108 test_cfg.yaml` then use either the python client or the rust client (Samples are under `examples/sample.py` and `src/bin/usage_example.rs` respectively) to interact with the database. 
