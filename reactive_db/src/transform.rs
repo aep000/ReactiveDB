@@ -1,10 +1,10 @@
-use crate::constants::UNION_MATCHING_KEY;
-use crate::constants::SOURCE_ENTRY_ID;
-use crate::constants::ROW_ID_COLUMN_NAME;
-use crate::database::Database;
 use crate::config::parser::{ExpressionValue, Statement};
-use crate::EntryValue;
+use crate::constants::ROW_ID_COLUMN_NAME;
+use crate::constants::SOURCE_ENTRY_ID;
+use crate::constants::UNION_MATCHING_KEY;
+use crate::database::Database;
 use crate::Entry;
+use crate::EntryValue;
 use crate::Expression;
 use std::collections::BTreeMap;
 
@@ -24,7 +24,7 @@ impl Transform {
         transaction: Entry,
         table_name: &String,
         db: &mut Database,
-        source_table: Option<&String>
+        source_table: Option<&String>,
     ) -> Option<Entry> {
         match self {
             Transform::Function(statments) => {
@@ -46,9 +46,13 @@ impl Transform {
                 }
             }
 
-            Transform::Union(columns) => {
-                Transform::union_transform(columns, transaction, table_name, source_table.unwrap(), db)
-            }
+            Transform::Union(columns) => Transform::union_transform(
+                columns,
+                transaction,
+                table_name,
+                source_table.unwrap(),
+                db,
+            ),
             //TODO impliment Aggregate
             _ => None,
         }
@@ -86,7 +90,10 @@ impl Transform {
                 match result {
                     EntryValue::Bool(b) => {
                         if b {
-                            let source_uuid = transaction.get(&ROW_ID_COLUMN_NAME.to_string()).unwrap().clone();
+                            let source_uuid = transaction
+                                .get(&ROW_ID_COLUMN_NAME.to_string())
+                                .unwrap()
+                                .clone();
                             transaction.insert(SOURCE_ENTRY_ID.to_string(), source_uuid);
                             return Ok(Some(transaction));
                         }
@@ -112,13 +119,17 @@ impl Transform {
             if table == source_table {
                 foreign_value = match transaction.get(key) {
                     Some(val) => Some(val),
-                    None => panic!("Foreign key column in transaction")
+                    None => panic!("Foreign key column in transaction"),
                 };
                 foreign_key = Some(key);
             }
         }
         //let table_obj =  db.tables.get(table_name).unwrap();
-        match db.delete_all(table_name, UNION_MATCHING_KEY.to_string(), foreign_value.unwrap().clone()){
+        match db.delete_all(
+            table_name,
+            UNION_MATCHING_KEY.to_string(),
+            foreign_value.unwrap().clone(),
+        ) {
             Ok(old_entries) => {
                 if old_entries.len() > 0 {
                     let mut old_entry = old_entries[0].clone();
@@ -126,18 +137,23 @@ impl Transform {
                         old_entry.insert(key, value);
                     }
                     Some(old_entry)
-                }
-                else {
+                } else {
                     let mut new_entry = transaction.clone();
                     new_entry.remove(foreign_key.unwrap());
-                    new_entry.insert(UNION_MATCHING_KEY.to_string(), foreign_value.unwrap().clone());
+                    new_entry.insert(
+                        UNION_MATCHING_KEY.to_string(),
+                        foreign_value.unwrap().clone(),
+                    );
                     Some(new_entry)
                 }
             }
-            Err(_) =>{
+            Err(_) => {
                 let mut new_entry = transaction.clone();
                 new_entry.remove(foreign_key.unwrap());
-                new_entry.insert(UNION_MATCHING_KEY.to_string(), foreign_value.unwrap().clone());
+                new_entry.insert(
+                    UNION_MATCHING_KEY.to_string(),
+                    foreign_value.unwrap().clone(),
+                );
                 Some(new_entry)
             }
         }

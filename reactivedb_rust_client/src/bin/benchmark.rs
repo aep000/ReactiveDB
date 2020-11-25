@@ -1,9 +1,9 @@
-use std::time::Instant;
-use reactivedb_rust_client::types::DBRequest;
-use reactivedb_rust_client::types::EntryValue;
 use rand::Rng;
-use reactivedb_rust_client::types::EntryBuilder;
 use reactivedb_rust_client::client::Client;
+use reactivedb_rust_client::types::DBRequest;
+use reactivedb_rust_client::types::EntryBuilder;
+use reactivedb_rust_client::types::EntryValue;
+use std::time::Instant;
 
 #[tokio::main]
 async fn main() {
@@ -35,7 +35,11 @@ async fn get_all() {
     for n in arr {
         let mut client = Client::new("127.0.0.1:1108");
         client.open_connection().await.unwrap();
-        let find_one_request = DBRequest::new_find_one("testTable".to_string(), "testForIteration".to_string(), EntryValue::Integer(n));
+        let find_one_request = DBRequest::new_find_one(
+            "testTable".to_string(),
+            "testForIteration".to_string(),
+            EntryValue::Integer(n),
+        );
         client.make_request(find_one_request).await.unwrap();
     }
-} 
+}

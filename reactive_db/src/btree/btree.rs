@@ -2,7 +2,7 @@ use serde_json::Result;
 use std::io;
 use std::io::{Cursor, Error, ErrorKind};
 
-use crate::btree::node::{NodeEntry, IndexValue, Node};
+use crate::btree::node::{IndexValue, Node, NodeEntry};
 use crate::StorageManager;
 
 pub struct BTree {
@@ -50,20 +50,18 @@ impl BTree {
                 None => 0,
             },
         };
-        let (_, deleted_entry, _) =
-            self.delete_helper(&entry, 1, entry.right_ref != 0)?;
+        let (_, deleted_entry, _) = self.delete_helper(&entry, 1, entry.right_ref != 0)?;
         let mut deleted = deleted_entry;
         let mut deleted_indexes = vec![];
         while delete_all_nodes && deleted != None {
             deleted_indexes.push(deleted.unwrap().right_ref);
-            let (_, deleted_entry, _) =
-                match self.delete_helper(&entry, 1, entry.right_ref != 0) {
-                    Ok(t) => t,
-                    _ => {
-                        self.storage_manager.end_session();
-                        return Ok(deleted_indexes);
-                    }
-                };
+            let (_, deleted_entry, _) = match self.delete_helper(&entry, 1, entry.right_ref != 0) {
+                Ok(t) => t,
+                _ => {
+                    self.storage_manager.end_session();
+                    return Ok(deleted_indexes);
+                }
+            };
             deleted = deleted_entry;
         }
         if self.storage_manager.is_empty(1)? {
@@ -73,7 +71,8 @@ impl BTree {
                 next_node: 0,
             };
             let root_node_encoded = unwrap_encode(&root_node);
-            self.storage_manager.write_data(root_node_encoded, Some(1))?;
+            self.storage_manager
+                .write_data(root_node_encoded, Some(1))?;
         }
         self.storage_manager.end_session();
         Ok(deleted_indexes)
@@ -196,7 +195,11 @@ impl BTree {
         return Ok(output);
     }
 
-    fn insert_helper(&mut self, current_node_ref: u32, entry: NodeEntry) -> io::Result<InsertResult> {
+    fn insert_helper(
+        &mut self,
+        current_node_ref: u32,
+        entry: NodeEntry,
+    ) -> io::Result<InsertResult> {
         let mut current_node = self.get_node(current_node_ref)?;
         //Is this a leaf node?
         if current_node.leaf {
@@ -470,13 +473,19 @@ impl BTree {
                         next_node: 0,
                     };
                     let root_node_encoded = unwrap_encode(&root_node);
-                    self.storage_manager.write_data(root_node_encoded, Some(1))?;
+                    self.storage_manager
+                        .write_data(root_node_encoded, Some(1))?;
                     Ok(root_node)
+                } else {
+                    Err(Error::new(
+                        ErrorKind::Other,
+                        format!(
+                            "Error Decoding Node for: {:?}",
+                            self.storage_manager.file_name
+                        ),
+                    ))
                 }
-                else{
-                    Err(Error::new(ErrorKind::Other, format!("Error Decoding Node for: {:?}", self.storage_manager.file_name)))
-                }
-            },
+            }
         };
     }
 
@@ -492,18 +501,19 @@ impl BTree {
                 if pos < node.entries.len() {
                     if node.entries[pos].index == entry.index && !match_reference {
                         return Some((node.entries[pos].clone(), pos));
-                    }
-                    else if node.entries[pos].index == entry.index && match_reference {
+                    } else if node.entries[pos].index == entry.index && match_reference {
                         let mut current_pos = pos;
-                        while node.entries[current_pos].index == entry.index && current_pos < node.entries.len(){
+                        while node.entries[current_pos].index == entry.index
+                            && current_pos < node.entries.len()
+                        {
                             if node.entries[current_pos].right_ref == entry.right_ref {
                                 return Some((node.entries[pos].clone(), pos));
                             }
-                            current_pos+=1;
+                            current_pos += 1;
                         }
-                        if current_pos < node.entries.len() &&  node.next_node != 0{
+                        if current_pos < node.entries.len() && node.next_node != 0 {
                             let next_node = self.get_node(node.next_node).unwrap();
-                            return self.find_entry_in_node(&next_node,entry,true,)
+                            return self.find_entry_in_node(&next_node, entry, true);
                         }
                     }
                     None

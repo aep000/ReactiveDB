@@ -1,30 +1,29 @@
 mod btree;
+mod client_connection;
+mod config;
+mod constants;
 mod database;
+mod db_thread;
+mod server;
 mod storage_manager;
 mod table;
+mod tests;
 mod transform;
 mod types;
-mod constants;
-mod tests;
-mod config;
-mod server;
-mod client_connection;
-mod db_thread;
 
-
-use std::time::Duration;
 use crate::btree::btree::BTree;
 use crate::btree::node::IndexValue;
 use crate::config::config_reader::read_config_file;
+use crate::config::parser::Expression;
 use crate::database::Database;
-use crate::config::parser::{Expression};
 use crate::storage_manager::StorageManager;
 use crate::table::{Column, Table, TableType};
 use crate::transform::Transform;
-use crate::types::{DataType, EntryValue, Entry};
-use std::io;
+use crate::types::{DataType, Entry, EntryValue};
 use std::env;
+use std::io;
 use std::thread;
+use std::time::Duration;
 
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();

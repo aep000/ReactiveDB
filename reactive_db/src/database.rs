@@ -1,24 +1,24 @@
-use tokio::sync::mpsc::Sender;
-use crate::client_connection::{ToClientMessage, ListenResponse, ListenRequest, DBResponse};
-use uuid::Uuid;
-use crate::constants::SOURCE_ENTRY_ID;
-use crate::constants::ROW_ID_COLUMN_NAME;
-use crate::config::parser::parse_transform_config;
-use crate::types::Entry;
+use crate::client_connection::ListenEvent;
+use crate::client_connection::{DBResponse, ListenRequest, ListenResponse, ToClientMessage};
 use crate::config::config_reader::{DbConfig, TableConfig};
+use crate::config::parser::parse_transform_config;
+use crate::constants::ROW_ID_COLUMN_NAME;
+use crate::constants::SOURCE_ENTRY_ID;
 use crate::transform::Transform;
+use crate::types::Entry;
 use crate::Column;
+use crate::DataType;
 use crate::EntryValue;
 use crate::Table;
 use crate::TableType;
-use crate::DataType;
-use crate::client_connection::ListenEvent;
 use std::collections::HashMap;
+use tokio::sync::mpsc::Sender;
+use uuid::Uuid;
 
 pub struct Database {
     pub tables: HashMap<String, Table>,
     listeners: HashMap<String, Vec<(ListenEvent, Uuid)>>,
-    response_channels: HashMap<Uuid, Sender<ToClientMessage>>
+    response_channels: HashMap<Uuid, Sender<ToClientMessage>>,
 }
 
 impl Database {
@@ -33,7 +33,12 @@ impl Database {
                         columns.push(Column::new(name, data_type))
                     }
                     columns.push(Column::new("_entryId".to_string(), DataType::ID));
-                    let new_table = match Table::new(name.clone(), columns, TableType::Source, storage_path.clone()) {
+                    let new_table = match Table::new(
+                        name.clone(),
+                        columns,
+                        TableType::Source,
+                        storage_path.clone(),
+                    ) {
                         Ok(t) => Ok(t),
                         Err(e) => Err(format!("{:?}", e)),
                     }?;
@@ -58,7 +63,11 @@ impl Database {
             };
             table_to_mod.output_tables.push(dest_table.clone());
         }
-        return Ok(Database { tables: tables, listeners: HashMap::new(), response_channels: HashMap::new() });
+        return Ok(Database {
+            tables: tables,
+            listeners: HashMap::new(),
+            response_channels: HashMap::new(),
+        });
     }
 
     pub fn find_one(
@@ -93,23 +102,29 @@ impl Database {
             Ok(deleted) => {
                 for output_table in &table_obj.output_tables {
                     for entry in &deleted {
-                        to_delete.push((output_table.clone(), entry.get(ROW_ID_COLUMN_NAME).unwrap().clone()));
+                        to_delete.push((
+                            output_table.clone(),
+                            entry.get(ROW_ID_COLUMN_NAME).unwrap().clone(),
+                        ));
                         match self.listeners.get(table) {
                             Some(listener_list) => {
                                 for (event, conn_id) in listener_list {
                                     match event {
                                         ListenEvent::Delete => {
-                                                match self.response_channels.get(conn_id) {
-                                                    Some(channel) => {
-                                                        let msg = ToClientMessage::Event(ListenResponse {
+                                            match self.response_channels.get(conn_id) {
+                                                Some(channel) => {
+                                                    let msg =
+                                                        ToClientMessage::Event(ListenResponse {
                                                             table_name: table.to_string(),
                                                             event: ListenEvent::Delete,
-                                                            value: DBResponse::OneResult(Ok(Some(entry.clone()))),
+                                                            value: DBResponse::OneResult(Ok(Some(
+                                                                entry.clone(),
+                                                            ))),
                                                         });
-                                                        channel.blocking_send(msg);
-                                                    },
-                                                    None => {}
-                                                }   
+                                                    channel.blocking_send(msg);
+                                                }
+                                                None => {}
+                                            }
                                         }
                                         _ => {}
                                     }
@@ -120,7 +135,7 @@ impl Database {
                     }
                 }
                 deleted
-            },
+            }
             Err(e) => Err(format!("Error when deleting for entries {}", e))?,
         };
         for (table, id) in to_delete {
@@ -134,7 +149,7 @@ impl Database {
         &mut self,
         table: &String,
         entry: Entry,
-        source_table: Option<&String>
+        source_table: Option<&String>,
     ) -> Result<(), String> {
         let output_tables = self.get_all_next_inserts(table);
         let transform = self.get_table_transform(table);
@@ -146,24 +161,20 @@ impl Database {
             Some(listener_list) => {
                 for (event, conn_id) in listener_list {
                     match event {
-                        ListenEvent::Insert => {
-                            match entry.clone() {
-                                Some(entry_clone) => {
-                                    match self.response_channels.get(conn_id) {
-                                        Some(channel) => {
-                                            let msg = ToClientMessage::Event(ListenResponse {
-                                                table_name: table.to_string(),
-                                                event: ListenEvent::Insert,
-                                                value: DBResponse::OneResult(Ok(Some(entry_clone))),
-                                            });
-                                            channel.blocking_send(msg);
-                                        },
-                                        None => {}
-                                    }
+                        ListenEvent::Insert => match entry.clone() {
+                            Some(entry_clone) => match self.response_channels.get(conn_id) {
+                                Some(channel) => {
+                                    let msg = ToClientMessage::Event(ListenResponse {
+                                        table_name: table.to_string(),
+                                        event: ListenEvent::Insert,
+                                        value: DBResponse::OneResult(Ok(Some(entry_clone))),
+                                    });
+                                    channel.blocking_send(msg);
                                 }
                                 None => {}
-                            }
-                        }
+                            },
+                            None => {}
+                        },
                         _ => {}
                     }
                 }
@@ -181,7 +192,7 @@ impl Database {
                                     self.insert_entry(
                                         &output_table,
                                         inserted_entry_unwrapped.clone(),
-                                        Some(table)
+                                        Some(table),
                                     )?;
                                 }
                                 ()
@@ -230,16 +241,21 @@ impl Database {
         }
     }
 
-    pub fn add_listener(&mut self, listen_request: ListenRequest, client_id: Uuid){
+    pub fn add_listener(&mut self, listen_request: ListenRequest, client_id: Uuid) {
         let mut listener_list = match self.listeners.remove(&listen_request.table_name) {
             Some(listener_list) => listener_list,
-            None => vec![]
+            None => vec![],
         };
         listener_list.push((listen_request.event, client_id));
-        self.listeners.insert(listen_request.table_name, listener_list);
+        self.listeners
+            .insert(listen_request.table_name, listener_list);
     }
 
-    pub fn add_response_channel(&mut self, client_id: Uuid, response_channel: Sender<ToClientMessage>) {
+    pub fn add_response_channel(
+        &mut self,
+        client_id: Uuid,
+        response_channel: Sender<ToClientMessage>,
+    ) {
         self.response_channels.insert(client_id, response_channel);
     }
 

@@ -1,7 +1,4 @@
-pub mod types;
 pub mod client;
+pub mod types;
 #[cfg(test)]
-mod tests {
-}
-
-
+mod tests {}

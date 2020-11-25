@@ -1,13 +1,13 @@
-use crate::table::TableType;
-use crate::Column;
 use crate::config::config_reader::{TransformTableConfig, TransformType};
-use crate::Table;
-use crate::DataType;
+use crate::table::TableType;
 use crate::types::Comparison;
-use crate::Transform;
 use crate::types::EntryValue;
 use crate::types::Operation;
 use crate::types::OperationOrComparison;
+use crate::Column;
+use crate::DataType;
+use crate::Table;
+use crate::Transform;
 
 #[derive(Clone, Ord, Eq, PartialOrd, PartialEq, Debug)]
 pub enum Statement {
@@ -15,7 +15,10 @@ pub enum Statement {
     Comparison(Expression),
 }
 
-pub fn parse_transform_config(config: TransformTableConfig, storage_path: String) -> Result<Table, String> {
+pub fn parse_transform_config(
+    config: TransformTableConfig,
+    storage_path: String,
+) -> Result<Table, String> {
     let name = config.name;
     let mut columns = vec![];
     columns.push(Column::new("_entryId".to_string(), DataType::ID));

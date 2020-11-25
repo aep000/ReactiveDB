@@ -1,13 +1,13 @@
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
+    use crate::read_config_file;
+    use crate::Database;
     use crate::Entry;
     use crate::EntryValue;
-    use crate::Database;
-    use crate::read_config_file;
-    use std::fs;
     use rand::Rng;
-    fn get_db(data_destination:String) -> Database{
+    use std::collections::BTreeMap;
+    use std::fs;
+    fn get_db(data_destination: String) -> Database {
         fs::remove_dir_all(data_destination.clone()).unwrap();
         fs::create_dir(data_destination.clone()).unwrap();
         let config = read_config_file("test_cfg.yaml".to_string()).unwrap();
@@ -32,26 +32,62 @@ mod tests {
             if n < 5 {
                 entries.push(entry_to_insert.build());
             }
-            db.insert_entry(&"testTable".to_string(), entry_to_insert.build(), None).unwrap();
+            db.insert_entry(&"testTable".to_string(), entry_to_insert.build(), None)
+                .unwrap();
         }
-        // Test source 
-        let results = db.find_one(&"testTable".to_string(), "testForIteration".to_string(), EntryValue::Integer(15)).unwrap().unwrap();
+        // Test source
+        let results = db
+            .find_one(
+                &"testTable".to_string(),
+                "testForIteration".to_string(),
+                EntryValue::Integer(15),
+            )
+            .unwrap()
+            .unwrap();
         let unwrapped_insert = middle_entry.unwrap();
-        assert_eq!(results.get("testForIteration").unwrap(), unwrapped_insert.get("testForIteration").unwrap());
-        assert_eq!(results.get("testForIndex").unwrap(), unwrapped_insert.get("testForIndex").unwrap());
+        assert_eq!(
+            results.get("testForIteration").unwrap(),
+            unwrapped_insert.get("testForIteration").unwrap()
+        );
+        assert_eq!(
+            results.get("testForIndex").unwrap(),
+            unwrapped_insert.get("testForIndex").unwrap()
+        );
         print!("{:?}", results.get("_entryId").unwrap());
         // Test derived
-        let results = db.find_one(&"derived".to_string(), "_sourceEntryId".to_string(), results.get("_entryId").unwrap().clone()).unwrap().unwrap();
+        let results = db
+            .find_one(
+                &"derived".to_string(),
+                "_sourceEntryId".to_string(),
+                results.get("_entryId").unwrap().clone(),
+            )
+            .unwrap()
+            .unwrap();
         let iteration = unwrapped_insert.get("testForIteration").unwrap();
         match iteration {
-            EntryValue::Integer(n) => assert_eq!(results.get("newColumn").unwrap(), &EntryValue::Integer(n+2)),
-            _ => panic!("Inserted value is not an integer as expected")
+            EntryValue::Integer(n) => assert_eq!(
+                results.get("newColumn").unwrap(),
+                &EntryValue::Integer(n + 2)
+            ),
+            _ => panic!("Inserted value is not an integer as expected"),
         }
 
-        let results = db.less_than_search(&"testTable".to_string(), "testForIteration".to_string(), EntryValue::Integer(5)).unwrap();
+        let results = db
+            .less_than_search(
+                &"testTable".to_string(),
+                "testForIteration".to_string(),
+                EntryValue::Integer(5),
+            )
+            .unwrap();
         for n in 0..results.len() {
-            assert_eq!(results[n].get("testForIteration").unwrap(), entries[n].get("testForIteration").unwrap());
-            assert_eq!(results[n].get("testForIndex").unwrap(), entries[n].get("testForIndex").unwrap());
+            assert_eq!(
+                results[n].get("testForIteration").unwrap(),
+                entries[n].get("testForIteration").unwrap()
+            );
+            assert_eq!(
+                results[n].get("testForIndex").unwrap(),
+                entries[n].get("testForIndex").unwrap()
+            );
         }
     }
 
@@ -69,13 +105,26 @@ mod tests {
             if n < 5 {
                 entries.push(entry_to_insert.build());
             }
-            db.insert_entry(&"testTable".to_string(), entry_to_insert.build(), None).unwrap();
+            db.insert_entry(&"testTable".to_string(), entry_to_insert.build(), None)
+                .unwrap();
         }
-        // Test source 
-        let results = db.less_than_search(&"testTable".to_string(), "testForIteration".to_string(), EntryValue::Integer(5)).unwrap();
+        // Test source
+        let results = db
+            .less_than_search(
+                &"testTable".to_string(),
+                "testForIteration".to_string(),
+                EntryValue::Integer(5),
+            )
+            .unwrap();
         for n in 0..results.len() {
-            assert_eq!(results[n].get("testForIteration").unwrap(), entries[n].get("testForIteration").unwrap());
-            assert_eq!(results[n].get("testForIndex").unwrap(), entries[n].get("testForIndex").unwrap());
+            assert_eq!(
+                results[n].get("testForIteration").unwrap(),
+                entries[n].get("testForIteration").unwrap()
+            );
+            assert_eq!(
+                results[n].get("testForIndex").unwrap(),
+                entries[n].get("testForIndex").unwrap()
+            );
         }
     }
 
@@ -93,13 +142,26 @@ mod tests {
             if n >= 10 {
                 entries.push(entry_to_insert.build());
             }
-            db.insert_entry(&"testTable".to_string(), entry_to_insert.build(), None).unwrap();
+            db.insert_entry(&"testTable".to_string(), entry_to_insert.build(), None)
+                .unwrap();
         }
-        // Test source 
-        let results = db.greater_than_search(&"testTable".to_string(), "testForIteration".to_string(), EntryValue::Integer(10)).unwrap();
+        // Test source
+        let results = db
+            .greater_than_search(
+                &"testTable".to_string(),
+                "testForIteration".to_string(),
+                EntryValue::Integer(10),
+            )
+            .unwrap();
         for n in 0..results.len() {
-            assert_eq!(results[n].get("testForIteration").unwrap(), entries[n].get("testForIteration").unwrap());
-            assert_eq!(results[n].get("testForIndex").unwrap(), entries[n].get("testForIndex").unwrap());
+            assert_eq!(
+                results[n].get("testForIteration").unwrap(),
+                entries[n].get("testForIteration").unwrap()
+            );
+            assert_eq!(
+                results[n].get("testForIndex").unwrap(),
+                entries[n].get("testForIndex").unwrap()
+            );
         }
     }
 

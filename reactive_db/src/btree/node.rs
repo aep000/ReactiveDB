@@ -9,7 +9,7 @@ pub struct Node {
     pub leaf: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, )]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NodeEntry {
     pub index: IndexValue,
     pub right_ref: u32,
@@ -42,7 +42,7 @@ pub enum IndexValue {
     Integer(isize),
     String(String),
     Array(Vec<IndexValue>),
-    ID(String)
+    ID(String),
 }
 
 impl fmt::Debug for IndexValue {
@@ -55,8 +55,8 @@ impl fmt::Debug for IndexValue {
                 formatter.write_str("Array(")?;
                 fmt::Debug::fmt(v, formatter)?;
                 formatter.write_str(")")
-            },
-            IndexValue::ID(ref id) => fmt::Debug::fmt(id, formatter)
+            }
+            IndexValue::ID(ref id) => fmt::Debug::fmt(id, formatter),
         }
     }
 }
