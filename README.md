@@ -30,7 +30,7 @@ A table defined in the configuration file which is either a Function, Filter, or
       (Transform defintion here)
 ```
 
-### Function, Filter, or Union
+### Function, Filter, Union and Aggregation
 The basic data operations allowed in ReactiveDB
 
 - Function (Change one or more columns from an input table into another):
@@ -55,3 +55,23 @@ UnionTransform:
   - - table2
     - column2
  ```
+ - Aggregation (Takes all rows that have the same aggragated column and runs a series of function on them) 
+ ```yaml
+AggregationTransform:
+    source_table: users
+    aggregated_column: name
+    functions:
+        # The memo. prepend to a column indicates how to use the previous results of the function
+        # The memo value can also be used to compute other columns
+        - count ~ memo.count + 1
+        - sum ~ memo.sum + age
+        - average ~ memo.sum/memo.count
+ ```
+ 
+ ### Query and Listen
+ There are currently two methods for retreiving data in ReactiveDB
+ 
+ - Query (Get old results from reactive DB tables)
+ 
+ - Listen (Stream of new results and changes being written to reactiveDB)
+ 
