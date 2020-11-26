@@ -1,4 +1,5 @@
-use crate::client_connection::{
+use crate::config::config_reader::DbConfig;
+use crate::network_types::{
     DBRequest, DBResponse, Query, RequestResponse, ToClientMessage,
 };
 use crate::read_config_file;
@@ -6,14 +7,26 @@ use crate::Database;
 use std::collections::HashMap;
 use tokio::sync::mpsc::{Receiver, Sender};
 use uuid::Uuid;
+use std::fs;
+use std::io;
 
 pub fn start_db_thread(
     mut request_reciever: Receiver<(DBRequest, Uuid)>,
     mut response_channel_reciever: Receiver<(Sender<ToClientMessage>, Uuid)>,
     config_file: String,
 ) -> std::io::Result<()> {
-    let config = read_config_file(config_file.to_string())?;
-    let db = Database::from_config(config, "db/".to_string());
+    let config:DbConfig = read_config_file(config_file.to_string())?;
+    let destination = config.storage_destination.clone();
+    match fs::create_dir(destination.clone()) {
+        Ok(()) => {},
+        Err(e) => {
+            match e.kind() {
+                io::ErrorKind::AlreadyExists => {},
+                _ => panic!(e)
+            }
+        }
+    };
+    let db = Database::from_config(config, destination);
     let mut db = match db {
         Ok(db) => db,
         Err(e) => panic!(e),

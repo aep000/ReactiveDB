@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use crate::config::config_reader::DbConfig;
     use crate::read_config_file;
     use crate::Database;
     use crate::Entry;
@@ -8,9 +9,10 @@ mod tests {
     use std::collections::BTreeMap;
     use std::fs;
     fn get_db(data_destination: String) -> Database {
-        fs::remove_dir_all(data_destination.clone()).unwrap();
-        fs::create_dir(data_destination.clone()).unwrap();
-        let config = read_config_file("test_cfg.yaml".to_string()).unwrap();
+        let _ = fs::remove_dir_all(data_destination.clone());
+        let _ = fs::create_dir(data_destination.clone());
+        let config:DbConfig = read_config_file("test_cfg.yaml".to_string()).unwrap();
+        
         Database::from_config(config, data_destination.clone()).unwrap()
     }
 

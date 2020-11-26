@@ -47,4 +47,4 @@ tables:
             - sum ~ memo.sum + grade
             - average ~ memo.sum/memo.count
 
-storage_destination: db/random/
+storage_destination: db/

@@ -53,7 +53,6 @@ pub fn parse_transform_config(
             }
             Transform::Aggregate((statements, config.aggregated_column))
         }
-        _ => Err("Unsupported derived table".to_string())?,
     };
     let table = Table::new(name, columns, TableType::Derived(transform), storage_path);
     match table {

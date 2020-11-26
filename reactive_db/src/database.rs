@@ -1,5 +1,4 @@
-use crate::client_connection::ListenEvent;
-use crate::client_connection::{DBResponse, ListenRequest, ListenResponse, ToClientMessage};
+use crate::network_types::{DBResponse, ListenRequest, ListenResponse, ToClientMessage, ListenEvent};
 use crate::config::config_reader::{DbConfig, TableConfig};
 use crate::config::parser::parse_transform_config;
 use crate::constants::ROW_ID_COLUMN_NAME;

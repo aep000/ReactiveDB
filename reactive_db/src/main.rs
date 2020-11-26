@@ -10,6 +10,7 @@ mod table;
 mod tests;
 mod transform;
 mod types;
+mod network_types;
 
 use crate::btree::btree::BTree;
 use crate::btree::node::IndexValue;

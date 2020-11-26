@@ -233,8 +233,8 @@ fn execute_expression(
 ) -> std::result::Result<EntryValue, String> {
     return match expression {
         Expression::Operation(left, operation, right) => {
-            println!("\nLeft: {:?} Operation {:?} Right: {:?}\n", left, operation, right);
-            println!("Transaction: {:?}\n", transaction);
+            //println!("\nLeft: {:?} Operation {:?} Right: {:?}\n", left, operation, right);
+            //println!("Transaction: {:?}\n", transaction);
             let resolved_left = resolve_expression_value(transaction, left)?;
             let resolved_right = resolve_expression_value(transaction, right)?;
             return operation.evaluate(resolved_left, resolved_right);

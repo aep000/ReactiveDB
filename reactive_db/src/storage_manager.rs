@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::io::Cursor;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use bzip2::read::BzDecoder;
@@ -27,6 +28,7 @@ pub struct StorageManager {
     pub number_of_blocks: u32,
     pub session_open: bool,
     pub open_file: Option<File>,
+    cache: HashMap<u32, Vec<u8>>
 }
 
 impl StorageManager {
@@ -38,6 +40,7 @@ impl StorageManager {
             number_of_blocks: 0,
             session_open: false,
             open_file: None,
+            cache: HashMap::new()
         };
         manager.start_write_session()?;
         manager.update_open_blocks()?;
@@ -182,6 +185,7 @@ impl StorageManager {
         let mut writer = BufWriter::new(file);
         let to_write: Vec<u8> = vec![0; TOTAL_BLOCK_SIZE as usize - data.len()];
         data.extend(to_write);
+        self.cache.insert(block_number, data.clone());
         writer.write(&data)?;
         writer.flush()?;
         return Ok(());
@@ -191,11 +195,19 @@ impl StorageManager {
         if !self.session_open {
             return Err(Error::new(ErrorKind::Other, "Session not open"));
         }
+        let is_in_cache = match self.cache.get(&block_number) {
+            Some(block) => {return Ok(block.clone())},
+            None => false
+        };
+        
         let mut file = self.open_file.as_ref().unwrap();
         file.seek(SeekFrom::Start((block_number * TOTAL_BLOCK_SIZE) as u64))?;
 
         let mut reader = BufReader::with_capacity(TOTAL_BLOCK_SIZE as usize, file);
         let buffer = reader.fill_buf()?;
+        if !is_in_cache {
+            self.cache.insert(block_number, buffer.to_vec());
+        }
         return Ok(buffer.to_vec());
     }
 
@@ -204,6 +216,7 @@ impl StorageManager {
         if !self.session_open {
             return Err(Error::new(ErrorKind::Other, "Session not open"));
         }
+        self.cache.remove(&block_number);
         let mut file = self.open_file.as_ref().unwrap();
         file.seek(SeekFrom::Start((block_number * TOTAL_BLOCK_SIZE) as u64))?;
         let fill = vec![0; TOTAL_BLOCK_SIZE as usize];
