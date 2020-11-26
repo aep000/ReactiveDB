@@ -45,6 +45,14 @@ pub fn parse_transform_config(
             }
             Transform::Union(config.tables_and_foreign_keys)
         }
+        TransformType::AggregationTransform(config) => {
+            let mut statements = vec![];
+            input_tables.push(config.source_table);
+            for raw_statement in config.functions {
+                statements.push(Statement::new_assignment(raw_statement)?);
+            }
+            Transform::Aggregate((statements, config.aggregated_column))
+        }
         _ => Err("Unsupported derived table".to_string())?,
     };
     let table = Table::new(name, columns, TableType::Derived(transform), storage_path);

@@ -41,10 +41,10 @@ async fn main() {
         .await
         .unwrap();
     let result = client
-        .make_request(DBRequest::new_find_one(
-            "unionTest".to_string(),
-            "matchingKey".to_string(),
-            EntryValue::Str("Alex".to_string()),
+        .make_request(DBRequest::new_greater_than(
+            "aggregationTest".to_string(),
+            "sum".to_string(),
+            EntryValue::Integer(0),
         ))
         .await
         .unwrap();

@@ -33,7 +33,7 @@ pub enum TransformType {
     FilterTransform(FilterTransformConfig),
     UnionTransform(UnionTransformConfig),
     // TODO impliment Aggregations
-    AggregationTransform,
+    AggregationTransform(AggregationTransformConfig),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -51,6 +51,13 @@ pub struct UnionTransformConfig {
 pub struct FilterTransformConfig {
     pub source_table: String,
     pub filter: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AggregationTransformConfig {
+    pub source_table: String,
+    pub aggregated_column: String,
+    pub functions: Vec<String>,
 }
 
 pub fn read_config_file(file_path: String) -> io::Result<DbConfig> {

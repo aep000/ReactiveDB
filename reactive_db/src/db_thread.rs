@@ -81,6 +81,14 @@ pub fn start_db_thread(
                             response: DBResponse::ManyResults(results),
                         });
                         let _ = response_channel.blocking_send(response);
+                    },
+                    Query::GetAll(request) => {
+                        let results = db.get_all(&request.table, request.column, request.key);
+                        let response = ToClientMessage::RequestResponse(RequestResponse {
+                            request_id: id,
+                            response: DBResponse::ManyResults(results),
+                        });
+                        let _ = response_channel.blocking_send(response);
                     }
                 }
             }

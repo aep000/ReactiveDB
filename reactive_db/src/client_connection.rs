@@ -113,6 +113,7 @@ pub struct ListenRequest {
 pub enum Query {
     FindOne(GetData),
     LessThan(GetData),
+    GetAll(GetData),
     GreaterThan(GetData),
     InsertData(InsertData),
     DeleteData(DeleteData),

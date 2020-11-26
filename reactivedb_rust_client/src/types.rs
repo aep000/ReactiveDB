@@ -12,6 +12,7 @@ pub struct ListenRequest {
 pub enum Query {
     FindOne(GetData),
     LessThan(GetData),
+    GetAll(GetData),
     GreaterThan(GetData),
     InsertData(InsertData),
     DeleteData(DeleteData),
@@ -62,6 +63,14 @@ impl DBRequest {
     }
     pub fn new_less_than(table: String, column: String, key: EntryValue) -> (DBRequest, Uuid) {
         let query = Query::LessThan(GetData { table, column, key });
+        let request_id = Uuid::new_v4();
+        (
+            DBRequest::Query(QueryRequest { request_id, query }),
+            request_id,
+        )
+    }
+    pub fn new_get_all(table: String, column: String, key: EntryValue) -> (DBRequest, Uuid) {
+        let query = Query::GetAll(GetData { table, column, key });
         let request_id = Uuid::new_v4();
         (
             DBRequest::Query(QueryRequest { request_id, query }),

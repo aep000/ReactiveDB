@@ -36,5 +36,15 @@ tables:
         FilterTransform:
           source_table: testTable
           filter: (testForIndex < 11) && (testForIteration > 14)
+  - Derived:
+      name: aggregationTest
+      transform_definition:
+        AggregationTransform:
+          source_table: users
+          aggregated_column: name
+          functions:
+            - count ~ memo.count + 1
+            - sum ~ memo.sum + age
+            - average ~ memo.sum/memo.count
 
 storage_destination: db/random/

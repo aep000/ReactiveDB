@@ -1,3 +1,4 @@
+use crate::constants::AGGREGATION_KEY;
 use crate::config::parser::{ExpressionValue, Statement};
 use crate::constants::ROW_ID_COLUMN_NAME;
 use crate::constants::SOURCE_ENTRY_ID;
@@ -15,7 +16,7 @@ pub enum Transform {
     Union(Vec<(String, String)>),
     Function(Vec<Statement>),
     //TODO Impl Aggregate
-    Aggregate,
+    Aggregate((Vec<Statement>, String)),
 }
 
 impl Transform {
@@ -53,8 +54,22 @@ impl Transform {
                 source_table.unwrap(),
                 db,
             ),
-            //TODO impliment Aggregate
-            _ => None,
+
+            Transform::Aggregate((statements, aggregation_column)) => match Transform::aggregate_transform(
+                statements, 
+                transaction,
+                table_name, 
+                source_table.unwrap(), 
+                aggregation_column, 
+                db
+            ){
+                Ok(entry) => Some(entry),
+                Err(something) => {
+                    print!("{}: {}", table_name, something);
+                    return None;
+                }
+            },
+            //_ => None,
         }
     }
 
@@ -158,6 +173,58 @@ impl Transform {
             }
         }
     }
+    fn aggregate_transform(
+        statements: &Vec<Statement>,
+        mut transaction: Entry,
+        table_name: &String,
+        source_table: &String,
+        aggregation_column: &String,        
+        db: &mut Database,
+    ) -> std::result::Result<Entry, String> {
+        let mut map: Entry = BTreeMap::new();
+        let source_uuid = transaction.get(&ROW_ID_COLUMN_NAME.to_string()).unwrap();
+        let mut source_transactions = db.get_all(source_table, aggregation_column.clone(), transaction.get(aggregation_column).unwrap().clone())?;
+        let aggregation_key = transaction.get(aggregation_column).unwrap();
+        map.insert(SOURCE_ENTRY_ID.to_string(), source_uuid.clone());
+        map.insert(AGGREGATION_KEY.to_string(), aggregation_key.clone());
+        db.delete_all(
+            table_name,
+            AGGREGATION_KEY.to_string(),
+            aggregation_key.clone(),
+        );
+        let mut n = 0;
+        for mut source_transaction in source_transactions.drain(..) {
+            for statement in statements {
+                let result = match statement {
+                    Statement::Assignment(dest, expr) => {
+                        let key = "memo.".to_owned() + dest;
+                        if n == 0 {
+                            transaction.insert(key.clone(), EntryValue::Integer(0));
+                            let first = execute_expression(&transaction, expr)?;
+                            source_transaction.insert(key.clone(), first.clone());
+                        }
+                        else{
+                            let existing =  map.get(&dest.to_string()).unwrap_or_else(|| -> &EntryValue {&EntryValue::Integer(0)});
+                            source_transaction.insert(key.clone(), existing.clone());
+                        }
+                        let step_result = execute_expression(&source_transaction, expr)?;
+                        Some((dest, step_result))
+                    }
+                    _ => None,
+                };
+                let _ = match result {
+                    Some((dest, res)) =>{
+                        source_transaction.insert("memo.".to_owned() + dest, res.clone());
+                        transaction.insert("memo.".to_owned()+ dest, res.clone());
+                        map.insert(dest.to_string(), res)
+                    },
+                    None => None,
+                };
+            }
+            n+=1;
+        }
+        return Ok(map);
+    }
 }
 
 fn execute_expression(
@@ -166,6 +233,8 @@ fn execute_expression(
 ) -> std::result::Result<EntryValue, String> {
     return match expression {
         Expression::Operation(left, operation, right) => {
+            println!("\nLeft: {:?} Operation {:?} Right: {:?}\n", left, operation, right);
+            println!("Transaction: {:?}\n", transaction);
             let resolved_left = resolve_expression_value(transaction, left)?;
             let resolved_right = resolve_expression_value(transaction, right)?;
             return operation.evaluate(resolved_left, resolved_right);

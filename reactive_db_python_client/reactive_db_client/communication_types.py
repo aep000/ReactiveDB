@@ -12,7 +12,7 @@ def create_insert_request(entry, table):
     return {"Query": request}
 
 def create_search_query(query_type, table, column, key):
-    assert (query_type == "FindOne" or query_type == "LessThan" or query_type == "GreaterThan")
+    assert (query_type == "FindOne" or query_type == "LessThan" or query_type == "GreaterThan" or query_type == "GetAll")
     request = dict()
     request["request_id"] = str(uuid.uuid4())
     request["query"] = {query_type: {"table": table, "column": column, "key": value_to_entry_value(key)}}

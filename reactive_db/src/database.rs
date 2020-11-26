@@ -225,6 +225,22 @@ impl Database {
         }
     }
 
+    pub fn get_all(
+        &mut self,
+        table: &String,
+        column: String,
+        key: EntryValue,
+    ) -> Result<Vec<Entry>, String> {
+        let table_obj = match self.tables.get_mut(table) {
+            Some(t) => t,
+            None => Err(format!("Unable to find table {}", table))?,
+        };
+        match table_obj.get_all(column, key) {
+            Ok(r) => Ok(r),
+            Err(e) => Err(format!("Error when searching for entry {:?}", e)),
+        }
+    }
+
     pub fn greater_than_search(
         &mut self,
         table: &String,

@@ -134,6 +134,70 @@ impl BTree {
         };
     }
 
+    // Searches for exact values and never
+    pub fn get_all(&mut self, index: IndexValue) -> io::Result<Vec<NodeEntry>> {
+        self.storage_manager.start_read_session()?;
+        let dummy_entry = NodeEntry {
+            index: index,
+            right_ref: 0,
+            left_ref: None,
+        };
+        let found_node = self.search_helper(&dummy_entry, 1)?;
+        let mut cursor = 0;
+        loop {
+            if cursor >= found_node.entries.len() {
+                return Ok(vec![])
+            }
+            if found_node.entries[cursor].index == dummy_entry.index {
+                break
+            }
+            cursor += 1;
+        }
+        let mut current_node:Node = found_node;
+        let mut output = vec![];
+        loop {
+            if cursor >= current_node.entries.len(){
+                if current_node.next_node == 0 {
+                    break;
+                }
+                current_node = self.get_node(current_node.next_node)?;
+                cursor = 0;
+            }
+            if current_node.entries[cursor].index != dummy_entry.index {
+                break;
+            }
+            output.push(current_node.entries[cursor].clone());
+            cursor+=1;
+        }
+        self.storage_manager.end_session();
+        Ok(output)
+        /*
+        return match self.find_entry_in_node(&found_node, &dummy_entry, false) {
+            Some((entry, pos)) => {
+                let mut cursor = pos;
+                let mut current_node:Node = found_node;
+                let mut output = vec![];
+                loop {
+                    if cursor >= current_node.entries.len(){
+                        if current_node.next_node == 0 {
+                            break;
+                        }
+                        current_node = self.get_node(current_node.next_node)?;
+                        cursor = 0;
+                    }
+                    if current_node.entries[cursor].index != dummy_entry.index {
+                        break;
+                    }
+                    output.push(current_node.entries[cursor].clone());
+                    cursor+=1;
+                }
+                self.storage_manager.end_session();
+                Ok(output)
+            },
+            None => Ok(vec![]),
+        };*/
+    }
+
     pub fn greater_than(&mut self, index: IndexValue) -> io::Result<Vec<NodeEntry>> {
         self.storage_manager.start_read_session()?;
         let dummy_entry = NodeEntry {
