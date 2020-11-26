@@ -40,11 +40,11 @@ tables:
       name: aggregationTest
       transform_definition:
         AggregationTransform:
-          source_table: users
+          source_table: grades
           aggregated_column: name
           functions:
             - count ~ memo.count + 1
-            - sum ~ memo.sum + age
+            - sum ~ memo.sum + grade
             - average ~ memo.sum/memo.count
 
 storage_destination: db/random/
