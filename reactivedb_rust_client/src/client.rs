@@ -1,11 +1,8 @@
 use crate::types::ClientRequest;
 use crate::types::DBRequest;
-use crate::types::Entry;
 use crate::types::ListenEvent;
-use crate::types::ListenRequest;
 use crate::types::{DBResponse, ToClientMessage};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use std::future::Future;
 use std::io;
 use std::io::Cursor;
 use std::io::{Error, ErrorKind};
@@ -13,7 +10,6 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::io::{ReadHalf, WriteHalf};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
-use uuid::Uuid;
 
 pub struct Client {
     addr: String,
@@ -68,7 +64,12 @@ impl Client {
             ))?,
         };
         let mut receiver = match &mut self.response_subscribe_channel {
-            Some(subscription_maker) => subscription_maker.subscribe().await,
+            Some(subscription_maker) => subscription_maker.subscribe(Box::new(move |entry: ToClientMessage| -> bool{
+                match entry {
+                    ToClientMessage::RequestResponse(message) => message.request_id == request_id.clone(),
+                    _ => false
+                }
+            })).await,
             None => Err(Error::new(
                 ErrorKind::Other,
                 "Connection to server not open",
@@ -92,7 +93,7 @@ impl Client {
         event: ListenEvent,
         callback: Box<dyn Fn(DBResponse) -> Result<(), ()> + Send>,
     ) -> io::Result<()> {
-        let request = DBRequest::new_listen(table_name, event);
+        let request = DBRequest::new_listen(table_name.clone(), event.clone());
         match &mut self.connection {
             Some(stream) => {
                 let serialized_request = serde_json::to_string(&request).unwrap();
@@ -112,7 +113,12 @@ impl Client {
         };
 
         let mut receiver = match &mut self.response_subscribe_channel {
-            Some(subscription_maker) => subscription_maker.subscribe().await,
+            Some(subscription_maker) => subscription_maker.subscribe(Box::new(move |entry: ToClientMessage| -> bool{
+                match entry {
+                    ToClientMessage::Event(message) => message.event == event.clone() && message.table_name == table_name.clone(),
+                    _ => false
+                }
+            })).await,
             None => Err(Error::new(
                 ErrorKind::Other,
                 "Connection to server not open",
@@ -137,7 +143,7 @@ impl Client {
         event: ListenEvent,
         callback: Box<dyn Fn(DBResponse) -> Result<(), ()> + Send>,
     ) -> io::Result<()> {
-        let request = DBRequest::new_listen(table_name, event);
+        let request = DBRequest::new_listen(table_name.clone(), event.clone());
         match &mut self.connection {
             Some(stream) => {
                 let serialized_request = serde_json::to_string(&request).unwrap();
@@ -157,7 +163,12 @@ impl Client {
         };
 
         let mut receiver = match &mut self.response_subscribe_channel {
-            Some(subscription_maker) => subscription_maker.subscribe().await,
+            Some(subscription_maker) => subscription_maker.subscribe(Box::new(move |entry: ToClientMessage| -> bool{
+                match entry {
+                    ToClientMessage::Event(message) => message.event == event.clone() && message.table_name == table_name.clone(),
+                    _ => false
+                }
+            })).await,
             None => Err(Error::new(
                 ErrorKind::Other,
                 "Connection to server not open",
@@ -192,17 +203,19 @@ impl Client {
     }
 }
 
+type ClosureType<T> = Box<dyn Fn(T)->bool + Send + Sync>;
+
 struct SubscriptionMaker<T> {
-    add_sub_channel: Sender<Sender<T>>,
+    add_sub_channel: Sender<(Sender<T>, ClosureType<T>)>,
 }
 
 impl<T> SubscriptionMaker<T> {
-    fn new(add_sub_channel: Sender<Sender<T>>) -> SubscriptionMaker<T> {
+    fn new(add_sub_channel: Sender<(Sender<T>, ClosureType<T>)>) -> SubscriptionMaker<T> {
         SubscriptionMaker { add_sub_channel }
     }
-    async fn subscribe(&mut self) -> Receiver<T> {
+    async fn subscribe(&mut self, condition: ClosureType<T>) -> Receiver<T> {
         let (sub_sender, sub_reciever) = channel(30);
-        match self.add_sub_channel.send(sub_sender).await {
+        match self.add_sub_channel.send((sub_sender, condition)).await {
             Ok(()) => {}
             Err(_) => panic!("Channel Dropped"),
         };
@@ -211,8 +224,8 @@ impl<T> SubscriptionMaker<T> {
 }
 
 struct SubscriptionManager<T> {
-    add_sub_channel: Receiver<Sender<T>>,
-    subscriptions: Vec<Sender<T>>,
+    add_sub_channel: Receiver<(Sender<T>, ClosureType<T>)>,
+    subscriptions: Vec<(Sender<T>, ClosureType<T>)>,
 }
 
 impl<T: Clone> SubscriptionManager<T> {
@@ -231,8 +244,10 @@ impl<T: Clone> SubscriptionManager<T> {
                 Err(_) => break,
             }
         }
-        for channel in &self.subscriptions {
-            channel.send(value.clone()).await;
+        for (channel, condition) in &self.subscriptions {
+            if condition(value.clone()){
+                channel.send(value.clone()).await;
+            }
         }
     }
 }

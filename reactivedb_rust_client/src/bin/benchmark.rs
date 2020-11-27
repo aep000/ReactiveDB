@@ -40,6 +40,6 @@ async fn get_all() {
             "testForIteration".to_string(),
             EntryValue::Integer(n),
         );
-        client.make_request(find_one_request).await.unwrap();
+        println!("{:?}",client.make_request(find_one_request).await.unwrap());
     }
 }

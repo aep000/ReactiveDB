@@ -11,6 +11,8 @@ mod tests;
 mod transform;
 mod types;
 mod network_types;
+mod utilities;
+mod storage_manager_async;
 
 use crate::btree::btree::BTree;
 use crate::btree::node::IndexValue;

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::utilities::max_size_hash_map::MaxSizeHashMap;
 use crate::io::Cursor;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use bzip2::read::BzDecoder;
@@ -16,6 +16,7 @@ use std::io::BufWriter;
 use std::io::SeekFrom;
 use std::io::{Error, ErrorKind};
 
+const CACHE_SIZE: usize = 100;
 const DATA_BLOCK_SIZE: u32 = 100;
 const REFERENCE_BLOCK_SIZE: u32 = 4;
 const TOTAL_BLOCK_SIZE: u32 = DATA_BLOCK_SIZE + REFERENCE_BLOCK_SIZE;
@@ -28,7 +29,7 @@ pub struct StorageManager {
     pub number_of_blocks: u32,
     pub session_open: bool,
     pub open_file: Option<File>,
-    cache: HashMap<u32, Vec<u8>>
+    cache: MaxSizeHashMap<u32, Vec<u8>>
 }
 
 impl StorageManager {
@@ -40,7 +41,7 @@ impl StorageManager {
             number_of_blocks: 0,
             session_open: false,
             open_file: None,
-            cache: HashMap::new()
+            cache: MaxSizeHashMap::new(CACHE_SIZE)
         };
         manager.start_write_session()?;
         manager.update_open_blocks()?;
@@ -89,11 +90,11 @@ impl StorageManager {
     }
 
     pub fn write_data(&mut self, data: Vec<u8>, starting_block: Option<u32>) -> io::Result<u32> {
-        let mut compressed = vec![];
-        BzEncoder::new(data.as_slice(), Compression::Default)
-            .read_to_end(&mut compressed)
-            .unwrap();
-        let data = compressed;
+        //let mut compressed = vec![];
+        //BzEncoder::new(data.as_slice(), Compression::Default)
+        //    .read_to_end(&mut compressed)
+        //    .unwrap();
+        //let data = compressed;
         self.start_write_session()?;
         let root_block: u32 = match starting_block {
             Some(n) => {
@@ -145,11 +146,12 @@ impl StorageManager {
         if output == vec![0; output.len()] {
             return Ok(output);
         }
-        let mut decompressed = vec![];
-        BzDecoder::new(output.as_slice())
-            .read_to_end(&mut decompressed)
-            .unwrap();
-        return Ok(trim(&decompressed));
+        //let mut decompressed = vec![];
+        //println!("{:?}", output);
+        //BzDecoder::new(output.as_slice())
+        //    .read_to_end(&mut decompressed)
+        //    .unwrap();
+        return Ok(trim(&output));
     }
 
     pub fn delete_data(&mut self, starting_block: u32) -> io::Result<()> {
@@ -196,7 +198,9 @@ impl StorageManager {
             return Err(Error::new(ErrorKind::Other, "Session not open"));
         }
         let is_in_cache = match self.cache.get(&block_number) {
-            Some(block) => {return Ok(block.clone())},
+            Some(block) => {
+                return Ok(block.clone())
+            },
             None => false
         };
         
@@ -216,7 +220,7 @@ impl StorageManager {
         if !self.session_open {
             return Err(Error::new(ErrorKind::Other, "Session not open"));
         }
-        self.cache.remove(&block_number);
+        self.cache.remove(block_number);
         let mut file = self.open_file.as_ref().unwrap();
         file.seek(SeekFrom::Start((block_number * TOTAL_BLOCK_SIZE) as u64))?;
         let fill = vec![0; TOTAL_BLOCK_SIZE as usize];
