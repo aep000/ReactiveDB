@@ -32,3 +32,7 @@ def value_to_entry_value(source):
         new_dict = dict()
         new_dict["Bool"] = source
         return new_dict
+    if isinstance(source, float):
+        new_dict = dict()
+        new_dict["Decimal"] = '"'+str(source)+'"'
+        return new_dict

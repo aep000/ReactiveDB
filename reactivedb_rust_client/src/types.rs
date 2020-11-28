@@ -1,3 +1,4 @@
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use uuid::Uuid;
@@ -127,6 +128,7 @@ pub enum EntryValue {
     Str(String),
     Bool(bool),
     ID(String),
+    Decimal(Decimal)
 }
 
 pub type Entry = BTreeMap<String, EntryValue>;

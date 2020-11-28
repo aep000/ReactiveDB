@@ -358,5 +358,6 @@ fn get_data_type_of_entry(entry: &EntryValue) -> DataType {
             return DataType::Map(output);
         }
         EntryValue::ID(_) => DataType::ID,
+        EntryValue::Decimal(_) => DataType::Decimal
     };
 }

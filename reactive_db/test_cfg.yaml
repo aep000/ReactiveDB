@@ -43,7 +43,7 @@ tables:
           source_table: grades
           aggregated_column: name
           functions:
-            - count ~ memo.count + 1
+            - count ~ memo.count + 1.0
             - sum ~ memo.sum + grade
             - average ~ memo.sum/memo.count
 

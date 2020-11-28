@@ -8,6 +8,8 @@ use crate::Column;
 use crate::DataType;
 use crate::Table;
 use crate::Transform;
+use rust_decimal::Decimal;
+use rust_decimal::prelude::*;
 
 #[derive(Clone, Ord, Eq, PartialOrd, PartialEq, Debug)]
 pub enum Statement {
@@ -208,13 +210,17 @@ impl ExpressionValue {
                     Ok(ExpressionValue::Value(EntryValue::Str(string_value)))
                 }
                 Tokens::Number(string_version) => {
-                    let conversion_result = match string_version.parse::<isize>() {
-                        Ok(number) => number,
-                        _ => Err(format!("issue converting integer {:?}", string_version))?,
-                    };
-                    Ok(ExpressionValue::Value(EntryValue::Integer(
-                        conversion_result,
-                    )))
+                    if string_version.contains('.') {
+                        match Decimal::from_str(string_version.as_str()) {
+                            Ok(number) => Ok(ExpressionValue::Value(EntryValue::Decimal(number))),
+                            _ => Err(format!("issue converting integer {:?}", string_version))?,
+                        }
+                    } else{
+                        match string_version.parse::<isize>() {
+                            Ok(number) => Ok(ExpressionValue::Value(EntryValue::Integer(number))),
+                            _ => Err(format!("issue converting integer {:?}", string_version))?,
+                        }
+                    }
                 }
                 Tokens::Word(word) => {
                     if word == "true" {

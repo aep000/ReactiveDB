@@ -18,3 +18,4 @@ reactivedb_rust_client = {path = "../reactivedb_rust_client"}
 bzip2 = "0.3.3"
 futures = "0.3"
 tokio = { version = "0.3", features = ["full"] }
+rust_decimal = "1.8.1"

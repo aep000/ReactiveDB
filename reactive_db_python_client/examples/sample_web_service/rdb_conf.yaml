@@ -1,0 +1,41 @@
+tables:
+  - Derived:
+      name: derived
+      transform_definition:
+        FunctionTransform:
+          source_table: testTable
+          functions:
+            - newColumn ~ testForIteration + 2
+  - Source:
+      name: users
+      columns:
+        name: Str
+        age: Integer
+  - Source:
+      name: grades
+      columns:
+        name: Str
+        grade: Integer
+  - Source:
+      name: testTable
+      columns:
+        testForIndex: Integer
+        testForIteration: Integer
+  - Derived:
+      name: filterTest
+      transform_definition:
+        FilterTransform:
+          source_table: testTable
+          filter: (testForIndex < 11) && (testForIteration > 14)
+  - Derived:
+      name: aggregationTest
+      transform_definition:
+        AggregationTransform:
+          source_table: users
+          aggregated_column: name
+          functions:
+            - count ~ memo.count + 1
+            - sum ~ memo.sum + age
+            - average ~ memo.sum/memo.count
+
+storage_destination: db/random/

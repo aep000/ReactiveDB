@@ -1,3 +1,4 @@
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt;
@@ -43,6 +44,7 @@ pub enum IndexValue {
     String(String),
     Array(Vec<IndexValue>),
     ID(String),
+    Decimal(Decimal)
 }
 
 impl fmt::Debug for IndexValue {
@@ -57,6 +59,7 @@ impl fmt::Debug for IndexValue {
                 formatter.write_str(")")
             }
             IndexValue::ID(ref id) => fmt::Debug::fmt(id, formatter),
+            IndexValue::Decimal(ref v) => fmt::Debug::fmt(v, formatter),
         }
     }
 }

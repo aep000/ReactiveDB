@@ -4,6 +4,8 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::io;
 use std::io::{Error, ErrorKind};
+use rust_decimal::Decimal;
+use rust_decimal::prelude::*;
 
 pub type Entry = BTreeMap<String, EntryValue>;
 
@@ -16,6 +18,7 @@ pub enum DataType {
     Float,
     Str,
     Bool,
+    Decimal
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialOrd, PartialEq, Ord)]
@@ -27,6 +30,7 @@ pub enum EntryValue {
     Str(String),
     Bool(bool),
     ID(String),
+    Decimal(Decimal)
 }
 
 impl DataType {
@@ -39,6 +43,7 @@ impl DataType {
             DataType::Str => true,
             DataType::Bool => true,
             DataType::ID => true,
+            DataType::Decimal => true
         }
     }
 }
@@ -56,6 +61,7 @@ impl EntryValue {
             }
             EntryValue::Str(v) => Ok(IndexValue::String(v.clone())),
             EntryValue::ID(v) => Ok(IndexValue::ID(v.clone())),
+            EntryValue::Decimal(v) => Ok(IndexValue::Decimal(v.clone())),
             others => Err(create_custom_io_error(
                 format!("Error Converting {:?} to IndexValue", others).as_str(),
             )),
@@ -136,6 +142,21 @@ impl Operation {
                 Operation::Sub => Ok(EntryValue::Integer(x - y)),
                 Operation::Exp => Ok(EntryValue::Integer(x.pow(y.abs() as u32))),
             },
+            (EntryValue::Decimal(x), EntryValue::Decimal(y)) => match self {
+                Operation::Mult => Ok(EntryValue::Decimal(x * y)),
+                Operation::Div => Ok(EntryValue::Decimal(x / y)),
+                Operation::Add => Ok(EntryValue::Decimal(x + y)),
+                Operation::Sub => Ok(EntryValue::Decimal(x - y)),
+                Operation::Exp => Err("Exponent not supported for decimals".to_string())
+            },
+            (EntryValue::Decimal(x), EntryValue::Integer(y)) => match self {
+                Operation::Mult => Ok(EntryValue::Decimal(x * Decimal::from_isize(y).unwrap())),
+                Operation::Div => Ok(EntryValue::Decimal(x / Decimal::from_isize(y).unwrap())),
+                Operation::Add => Ok(EntryValue::Decimal(x + Decimal::from_isize(y).unwrap())),
+                Operation::Sub => Ok(EntryValue::Decimal(x - Decimal::from_isize(y).unwrap())),
+                Operation::Exp => Err("Exponent not supported for decimals".to_string())
+            },
+            (EntryValue::Integer(x), EntryValue::Decimal(y)) => self.evaluate(EntryValue::Decimal(y), EntryValue::Integer(x)),
             (EntryValue::Str(x), EntryValue::Str(y)) => match self {
                 Operation::Add => {
                     let mut out = x.to_owned();
