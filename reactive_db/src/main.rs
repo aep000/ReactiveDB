@@ -13,7 +13,6 @@ mod types;
 mod network_types;
 mod utilities;
 
-
 use crate::btree::btree::BTree;
 use crate::btree::node::IndexValue;
 use crate::config::config_reader::read_config_file;
