@@ -149,14 +149,8 @@ impl Operation {
                 Operation::Sub => Ok(EntryValue::Decimal(x - y)),
                 Operation::Exp => Err("Exponent not supported for decimals".to_string())
             },
-            (EntryValue::Decimal(x), EntryValue::Integer(y)) => match self {
-                Operation::Mult => Ok(EntryValue::Decimal(x * Decimal::from_isize(y).unwrap())),
-                Operation::Div => Ok(EntryValue::Decimal(x / Decimal::from_isize(y).unwrap())),
-                Operation::Add => Ok(EntryValue::Decimal(x + Decimal::from_isize(y).unwrap())),
-                Operation::Sub => Ok(EntryValue::Decimal(x - Decimal::from_isize(y).unwrap())),
-                Operation::Exp => Err("Exponent not supported for decimals".to_string())
-            },
-            (EntryValue::Integer(x), EntryValue::Decimal(y)) => self.evaluate(EntryValue::Decimal(y), EntryValue::Integer(x)),
+            (EntryValue::Decimal(x), EntryValue::Integer(y)) => self.evaluate(EntryValue::Decimal(x), EntryValue::Decimal(Decimal::from_isize(y).unwrap())),
+            (EntryValue::Integer(x), EntryValue::Decimal(y)) => self.evaluate(EntryValue::Decimal(Decimal::from_isize(x).unwrap()), EntryValue::Decimal(y)),
             (EntryValue::Str(x), EntryValue::Str(y)) => match self {
                 Operation::Add => {
                     let mut out = x.to_owned();

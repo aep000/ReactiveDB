@@ -105,40 +105,21 @@ impl Database {
                             output_table.clone(),
                             entry.get(ROW_ID_COLUMN_NAME).unwrap().clone(),
                         ));
-                        match self.listeners.get(table) {
-                            Some(listener_list) => {
-                                for (event, conn_id) in listener_list {
-                                    match event {
-                                        ListenEvent::Delete => {
-                                            match self.response_channels.get(conn_id) {
-                                                Some(channel) => {
-                                                    let msg =
-                                                        ToClientMessage::Event(ListenResponse {
-                                                            table_name: table.to_string(),
-                                                            event: ListenEvent::Delete,
-                                                            value: DBResponse::OneResult(Ok(Some(
-                                                                entry.clone(),
-                                                            ))),
-                                                        });
-                                                    let _ = channel.blocking_send(msg);
-                                                }
-                                                None => {}
-                                            }
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                            }
-                            None => {}
-                        };
                     }
                 }
                 deleted
             }
             Err(e) => Err(format!("Error when deleting for entries {}", e))?,
         };
+        for entry in deleted.clone() {
+            self.inform_listeners(ListenEvent::Delete, Some(entry), table);
+        }
         for (table, id) in to_delete {
-            deleted.append(&mut self.delete_all(&table, SOURCE_ENTRY_ID.to_string(), id)?);
+            let mut output_table_deletes = self.delete_all(&table, SOURCE_ENTRY_ID.to_string(), id)?;
+            for entry in output_table_deletes.clone() {
+                self.inform_listeners(ListenEvent::Delete, Some(entry), &table);
+            }
+            deleted.append(&mut output_table_deletes);
         }
         Ok(deleted)
     }
@@ -156,30 +137,8 @@ impl Database {
             Some(transform) => transform.execute(entry, table, self, source_table),
             None => Some(entry),
         };
-        match self.listeners.get(table) {
-            Some(listener_list) => {
-                for (event, conn_id) in listener_list {
-                    match event {
-                        ListenEvent::Insert => match entry.clone() {
-                            Some(entry_clone) => match self.response_channels.get(conn_id) {
-                                Some(channel) => {
-                                    let msg = ToClientMessage::Event(ListenResponse {
-                                        table_name: table.to_string(),
-                                        event: ListenEvent::Insert,
-                                        value: DBResponse::OneResult(Ok(Some(entry_clone))),
-                                    });
-                                    let _ = channel.blocking_send(msg);
-                                }
-                                None => {}
-                            },
-                            None => {}
-                        },
-                        _ => {}
-                    }
-                }
-            }
-            None => {}
-        };
+
+        self.inform_listeners(ListenEvent::Insert, entry.clone(), table);
 
         match self.tables.get_mut(table) {
             Some(t) => {
@@ -272,6 +231,32 @@ impl Database {
         response_channel: Sender<ToClientMessage>,
     ) {
         self.response_channels.insert(client_id, response_channel);
+    }
+
+    fn inform_listeners(&mut self, channel: ListenEvent, entry: Option<Entry>, table: &String) {
+        match self.listeners.get(table) {
+            Some(listener_list) => {
+                for (event, conn_id) in listener_list {
+                    if event == &channel {
+                        match entry.clone(){
+                            Some(entry_clone) => match self.response_channels.get(conn_id) {
+                                Some(channel) => {
+                                    let msg = ToClientMessage::Event(ListenResponse {
+                                        table_name: table.to_string(),
+                                        event: ListenEvent::Insert,
+                                        value: DBResponse::OneResult(Ok(Some(entry_clone))),
+                                    });
+                                    let _ = channel.blocking_send(msg);
+                                }
+                                None => {}
+                            },
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            None => {}
+        };
     }
 
     fn get_all_next_inserts(&self, table: &String) -> Vec<String> {

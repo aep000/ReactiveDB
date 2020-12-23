@@ -29,7 +29,7 @@ pub enum DBResponse {
     NoResult(Result<(), String>),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub enum ListenEvent {
     Insert,
     Delete,
