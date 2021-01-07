@@ -1,5 +1,4 @@
-use crate::constants::AGGREGATION_KEY;
-use crate::config::parser::{ExpressionValue, Statement};
+use crate::{config::expression_parser::{ExpressionValue, Statement}, constants::AGGREGATION_KEY, types::{DBEdit, EditType}};
 use crate::constants::ROW_ID_COLUMN_NAME;
 use crate::constants::SOURCE_ENTRY_ID;
 use crate::constants::UNION_MATCHING_KEY;
@@ -17,6 +16,7 @@ pub enum Transform {
     Function(Vec<Statement>),
     //TODO Impl Aggregate
     Aggregate((Vec<Statement>, String)),
+    None,
 }
 
 impl Transform {
@@ -26,11 +26,11 @@ impl Transform {
         table_name: &String,
         db: &mut Database,
         source_table: Option<&String>,
-    ) -> Option<Entry> {
+    ) -> Option<DBEdit> {
         match self {
             Transform::Function(statments) => {
                 match Transform::function_transform(statments, transaction) {
-                    Ok(entry) => Some(entry),
+                    Ok(entry) => Some(DBEdit::new(table_name.clone(), EditType::Insert(entry))),
                     Err(something) => {
                         print!("{}: {}", table_name, something);
                         return None;
@@ -39,7 +39,10 @@ impl Transform {
             }
             Transform::Filter(statement) => {
                 match Transform::filter_transform(statement, transaction) {
-                    Ok(entry) => entry,
+                    Ok(wrapped_entry) => match wrapped_entry {
+                        Some(entry) => Some(DBEdit::new(table_name.clone(), EditType::Insert(entry))),
+                        None => None
+                    },
                     Err(something) => {
                         print!("{}: {}", table_name, something);
                         return None;
@@ -47,28 +50,56 @@ impl Transform {
                 }
             }
 
-            Transform::Union(columns) => Transform::union_transform(
+            Transform::Union(columns) => match Transform::union_transform(
                 columns,
-                transaction,
+                transaction.clone(),
                 table_name,
                 source_table.unwrap(),
                 db,
-            ),
+            ){
+                Some(entry) => {
+                    let mut foreign_value = None;
+                    for (table, key) in columns {
+                        if table == source_table.unwrap() {
+                            foreign_value = match transaction.get(key) {
+                                Some(val) => Some(val),
+                                None => panic!("Foreign key column in transaction"),
+                            };
+                        }
+                    }
+                    //TODO maybe make some kindof unmatchable type so that this doesnt mess things up
+                    return Some(DBEdit::new(
+                        table_name.clone(),
+                        EditType::Update(entry,
+                            UNION_MATCHING_KEY.to_string(),
+                            foreign_value.unwrap_or(&EntryValue::Str("Does Not Match Anything abcdefg".to_string())).clone()
+                        )
+                    ))
+                },
+                None => None
+            },
 
             Transform::Aggregate((statements, aggregation_column)) => match Transform::aggregate_transform(
                 statements, 
-                transaction,
+                transaction.clone(),
                 table_name, 
                 source_table.unwrap(), 
                 aggregation_column, 
                 db
             ){
-                Ok(entry) => Some(entry),
+                Ok(entry) => Some(
+                    DBEdit::new(
+                        table_name.clone(), 
+                        EditType::Update(
+                            entry, AGGREGATION_KEY.to_string(),
+                            transaction.get(aggregation_column).unwrap().clone()
+                        ))),
                 Err(something) => {
                     print!("{}: {}", table_name, something);
                     return None;
                 }
             },
+            Transform::None => Some(DBEdit::new(table_name.clone(), EditType::Insert(transaction)))
             //_ => None,
         }
     }
@@ -139,13 +170,14 @@ impl Transform {
                 foreign_key = Some(key);
             }
         }
-        //let table_obj =  db.tables.get(table_name).unwrap();
-        match db.delete_all(
+
+        match db.get_all(
             table_name,
             UNION_MATCHING_KEY.to_string(),
             foreign_value.unwrap().clone(),
         ) {
-            Ok(old_entries) => {
+            Ok(commited_edits) => {
+                let old_entries: Vec<Entry> = commited_edits;
                 if old_entries.len() > 0 {
                     let mut old_entry = old_entries[0].clone();
                     for (key, value) in transaction {
@@ -187,11 +219,6 @@ impl Transform {
         let aggregation_key = transaction.get(aggregation_column).unwrap();
         map.insert(SOURCE_ENTRY_ID.to_string(), source_uuid.clone());
         map.insert(AGGREGATION_KEY.to_string(), aggregation_key.clone());
-        db.delete_all(
-            table_name,
-            AGGREGATION_KEY.to_string(),
-            aggregation_key.clone(),
-        );
         let mut n = 0;
         for mut source_transaction in source_transactions.drain(..) {
             for statement in statements {
@@ -239,6 +266,7 @@ fn execute_expression(
             let resolved_right = resolve_expression_value(transaction, right)?;
             return operation.evaluate(resolved_left, resolved_right);
         }
+        Expression::Constant(value) => resolve_expression_value(transaction, value),
         _ => Err("Function expressions are currently unimplimented".to_string()),
     };
 }

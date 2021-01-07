@@ -1,5 +1,5 @@
 use crate::constants::{BTREE_NODE_SIZE, ROW_ID_COLUMN_NAME};
-use crate::transform::Transform;
+use crate::hooks::transforms::Transform;
 use crate::types::create_custom_io_error;
 use crate::types::DataType;
 use crate::types::{Entry, EntryValue};
@@ -9,7 +9,6 @@ use serde_json::Result;
 use std::collections::HashMap;
 use std::io;
 use uuid::Uuid;
-
 #[derive(Clone, Ord, Eq, PartialOrd, PartialEq)]
 pub struct Column {
     data_type: DataType,
@@ -17,7 +16,7 @@ pub struct Column {
     indexed: bool,
     index_loc: usize,
 }
-
+// TODO Extract transform from the level of abstraction
 #[derive(Clone, Ord, Eq, PartialOrd, PartialEq)]
 pub enum TableType {
     Source,

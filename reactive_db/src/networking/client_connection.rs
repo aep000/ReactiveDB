@@ -1,5 +1,4 @@
-use crate::network_types::ToClientMessage;
-use crate::network_types::DBRequest;
+use crate::networking::types::{DBRequest, ToClientMessage};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::io::Cursor;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};

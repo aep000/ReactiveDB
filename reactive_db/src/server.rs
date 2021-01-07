@@ -1,4 +1,4 @@
-use crate::client_connection;
+use crate::networking::client_connection;
 use crate::db_thread;
 use std::thread;
 use tokio::net::TcpListener;
@@ -24,7 +24,6 @@ pub async fn start_server(port: String, config_file: String) -> std::io::Result<
 
     tokio::spawn(async move {
         let listener = TcpListener::bind(format!("127.0.0.1:{}", port)).await.unwrap();
-        // accept connections and process them serially
         loop {
             let (stream, _) = listener.accept().await.unwrap();
             let client_id = Uuid::new_v4();

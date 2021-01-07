@@ -29,7 +29,7 @@ pub enum DBResponse {
     NoResult(Result<(), String>),
 }
 
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Clone)]
 pub enum ListenEvent {
     Insert,
     Delete,
@@ -55,7 +55,7 @@ pub struct ListenRequest {
     pub event: ListenEvent,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Query {
     FindOne(GetData),
     LessThan(GetData),
@@ -65,14 +65,14 @@ pub enum Query {
     DeleteData(DeleteData),
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct GetData {
     pub table: String,
     pub column: String,
     pub key: EntryValue,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct InsertData {
     pub table: String,
     pub entry: Entry,

@@ -1,69 +1,13 @@
-use crate::config::config_reader::{TransformTableConfig, TransformType};
-use crate::table::TableType;
-use crate::types::Comparison;
 use crate::types::EntryValue;
-use crate::types::Operation;
-use crate::types::OperationOrComparison;
-use crate::Column;
-use crate::DataType;
-use crate::Table;
-use crate::Transform;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::*;
+
+use super::types::{Comparison, Operation, OperationOrComparison};
 
 #[derive(Clone, Ord, Eq, PartialOrd, PartialEq, Debug)]
 pub enum Statement {
     Assignment(String, Expression),
     Comparison(Expression),
-}
-
-pub fn parse_transform_config(
-    config: TransformTableConfig,
-    storage_path: String,
-) -> Result<Table, String> {
-    let name = config.name;
-    let mut columns = vec![];
-    columns.push(Column::new("_entryId".to_string(), DataType::ID));
-    let mut input_tables = vec![];
-    let transform = match config.transform_definition {
-        TransformType::FunctionTransform(config) => {
-            columns.push(Column::new("_sourceEntryId".to_string(), DataType::ID));
-            let mut statements = vec![];
-            input_tables.push(config.source_table);
-            for raw_statement in config.functions {
-                statements.push(Statement::new_assignment(raw_statement)?);
-            }
-            Transform::Function(statements)
-        }
-        TransformType::FilterTransform(config) => {
-            columns.push(Column::new("_sourceEntryId".to_string(), DataType::ID));
-            let statement = Statement::new_comparison(config.filter)?;
-            input_tables.push(config.source_table);
-            Transform::Filter(statement)
-        }
-        TransformType::UnionTransform(config) => {
-            for (table, _) in config.tables_and_foreign_keys.iter() {
-                input_tables.push(table.clone());
-            }
-            Transform::Union(config.tables_and_foreign_keys)
-        }
-        TransformType::AggregationTransform(config) => {
-            let mut statements = vec![];
-            input_tables.push(config.source_table);
-            for raw_statement in config.functions {
-                statements.push(Statement::new_assignment(raw_statement)?);
-            }
-            Transform::Aggregate((statements, config.aggregated_column))
-        }
-    };
-    let table = Table::new(name, columns, TableType::Derived(transform), storage_path);
-    match table {
-        Ok(mut t) => {
-            t.input_tables = input_tables;
-            Ok(t)
-        }
-        Err(e) => Err(format!("{:?}", e)),
-    }
 }
 
 impl Statement {
@@ -120,6 +64,7 @@ pub enum Expression {
         OperationOrComparison,
         Box<ExpressionValue>,
     ),
+    Constant(Box<ExpressionValue>)
 }
 
 #[derive(Eq, PartialEq, Debug, Clone)]
@@ -184,6 +129,9 @@ impl Expression {
                 }
                 _ => {}
             };
+        }
+        if output.is_err() {
+            output = Ok(Expression::Constant(Box::new(ExpressionValue::get_expression_value(tokens)?)));
         }
         return output;
     }

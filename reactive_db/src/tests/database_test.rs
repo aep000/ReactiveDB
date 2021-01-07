@@ -1,24 +1,23 @@
 #[cfg(test)]
 mod tests {
-    use crate::config::config_reader::DbConfig;
+    use crate::{config::config_reader::DbConfig, database_manager::DatabaseManager};
     use crate::read_config_file;
-    use crate::Database;
     use crate::Entry;
     use crate::EntryValue;
     use rand::Rng;
     use std::collections::BTreeMap;
     use std::fs;
-    fn get_db(data_destination: String) -> Database {
+    fn get_db(data_destination: String) -> DatabaseManager {
         let _ = fs::remove_dir_all(data_destination.clone());
         let _ = fs::create_dir(data_destination.clone());
         let config:DbConfig = read_config_file("test_cfg.yaml".to_string()).unwrap();
         
-        Database::from_config(config, data_destination.clone()).unwrap()
+        DatabaseManager::from_config(config, data_destination.clone()).unwrap()
     }
 
     #[test]
     fn insert_many_fetch_one() {
-        let mut db = get_db("db/test1".to_string());
+        let mut dbm = get_db("db/test1".to_string());
         let arr = 0..29;
         let mut rng = rand::thread_rng();
         let mut middle_entry = None;
@@ -34,11 +33,15 @@ mod tests {
             if n < 5 {
                 entries.push(entry_to_insert.build());
             }
-            db.insert_entry(&"testTable".to_string(), entry_to_insert.build(), None)
-                .unwrap();
+            let (temp_dbm, results) = dbm.insert_entry(
+                &"testTable".to_string(),
+                entry_to_insert.build(),
+                None);
+            results.unwrap();
+            dbm = temp_dbm;
         }
         // Test source
-        let results = db
+        let results = dbm
             .find_one(
                 &"testTable".to_string(),
                 "testForIteration".to_string(),
@@ -57,7 +60,7 @@ mod tests {
         );
         print!("{:?}", results.get("_entryId").unwrap());
         // Test derived
-        let results = db
+        let results = dbm
             .find_one(
                 &"derived".to_string(),
                 "_sourceEntryId".to_string(),
@@ -74,7 +77,7 @@ mod tests {
             _ => panic!("Inserted value is not an integer as expected"),
         }
 
-        let results = db
+        let results = dbm
             .less_than_search(
                 &"testTable".to_string(),
                 "testForIteration".to_string(),
@@ -95,7 +98,7 @@ mod tests {
 
     #[test]
     fn insert_many_less_than() {
-        let mut db = get_db("db/test2".to_string());
+        let mut dbm = get_db("db/test2".to_string());
         let arr = 0..29;
         let mut rng = rand::thread_rng();
         let mut entries = vec![];
@@ -107,11 +110,12 @@ mod tests {
             if n < 5 {
                 entries.push(entry_to_insert.build());
             }
-            db.insert_entry(&"testTable".to_string(), entry_to_insert.build(), None)
-                .unwrap();
+            let (temp_dbm, results) = dbm.insert_entry(&"testTable".to_string(), entry_to_insert.build(), None);
+            results.unwrap();
+            dbm = temp_dbm;
         }
         // Test source
-        let results = db
+        let results = dbm
             .less_than_search(
                 &"testTable".to_string(),
                 "testForIteration".to_string(),
@@ -132,7 +136,7 @@ mod tests {
 
     #[test]
     fn insert_many_greater_than() {
-        let mut db = get_db("db/test3".to_string());
+        let mut dbm = get_db("db/test3".to_string());
         let arr = 0..29;
         let mut rng = rand::thread_rng();
         let mut entries = vec![];
@@ -144,11 +148,12 @@ mod tests {
             if n >= 10 {
                 entries.push(entry_to_insert.build());
             }
-            db.insert_entry(&"testTable".to_string(), entry_to_insert.build(), None)
-                .unwrap();
+            let (temp_dbm, result) = dbm.insert_entry(&"testTable".to_string(), entry_to_insert.build(), None);
+            dbm = temp_dbm;
+            result.unwrap();
         }
         // Test source
-        let results = db
+        let results = dbm
             .greater_than_search(
                 &"testTable".to_string(),
                 "testForIteration".to_string(),

@@ -1,72 +1,121 @@
-use crate::network_types::{DBResponse, ListenRequest, ListenResponse, ToClientMessage, ListenEvent};
-use crate::config::config_reader::{DbConfig, TableConfig};
-use crate::config::parser::parse_transform_config;
-use crate::constants::ROW_ID_COLUMN_NAME;
-use crate::constants::SOURCE_ENTRY_ID;
-use crate::transform::Transform;
-use crate::types::Entry;
-use crate::Column;
-use crate::DataType;
+use crate::types::CommitedEdit;
+use crate::hooks::hook::{Hook, Event};
+use crate::types::{Entry, DBEdit, EditType};
 use crate::EntryValue;
 use crate::Table;
-use crate::TableType;
 use std::collections::HashMap;
-use tokio::sync::mpsc::Sender;
-use uuid::Uuid;
 
-pub struct Database {
+
+pub type HookMap = HashMap<String, Vec<Box<dyn Hook>>>;
+
+pub struct Database{
     pub tables: HashMap<String, Table>,
-    listeners: HashMap<String, Vec<(ListenEvent, Uuid)>>,
-    response_channels: HashMap<Uuid, Sender<ToClientMessage>>,
 }
 
 impl Database {
-    pub fn from_config(config: DbConfig, storage_path: String) -> Result<Database, String> {
-        let mut tables: HashMap<String, Table> = HashMap::new();
-        for table in config.tables {
-            match table {
-                TableConfig::Source(source_config) => {
-                    let name = source_config.name;
-                    let mut columns = vec![];
-                    for (name, data_type) in source_config.columns {
-                        columns.push(Column::new(name, data_type))
-                    }
-                    columns.push(Column::new("_entryId".to_string(), DataType::ID));
-                    let new_table = match Table::new(
-                        name.clone(),
-                        columns,
-                        TableType::Source,
-                        storage_path.clone(),
-                    ) {
-                        Ok(t) => Ok(t),
-                        Err(e) => Err(format!("{:?}", e)),
-                    }?;
-                    tables.insert(name, new_table);
-                }
-                TableConfig::Derived(config) => {
-                    let table = parse_transform_config(config, storage_path.clone())?;
-                    tables.insert(table.name.clone(), table);
-                }
-            }
+
+    pub fn new(
+        tables: HashMap<String, Table>,
+    ) -> Database {
+        return Database {
+            tables,
         }
-        let mut input_refs = vec![];
-        for (name, table) in &tables {
-            for input_table_name in &table.input_tables {
-                input_refs.push((input_table_name.clone(), name.clone()));
-            }
-        }
-        for (source_table, dest_table) in input_refs {
-            let table_to_mod = match tables.get_mut(&source_table) {
-                Some(t) => t,
-                None => Err("Specified input table does not exist".to_string())?,
-            };
-            table_to_mod.output_tables.push(dest_table.clone());
-        }
-        return Ok(Database {
-            tables: tables,
-            listeners: HashMap::new(),
-            response_channels: HashMap::new(),
+    }
+
+    pub fn delete_all(
+        &mut self,
+        table: &String,
+        column: String,
+        key: EntryValue,
+        hooks: &mut HookMap
+    ) -> Result<Vec<CommitedEdit>, String> {
+
+        let edit = DBEdit::new(table.clone(), EditType::Delete(column, key));
+        let new_edits = self.execute_hooks(table, Event::PreDelete, Some(vec![edit]), None, hooks);
+        let (current_table_edits, other_edits) = split_vec(new_edits, |db_edit|->bool {
+            db_edit.table.eq(table)
         });
+        let mut commited_edits = self.execute_edits(other_edits, Some(table), hooks)?;
+
+        let table_obj = match self.tables.get_mut(table) {
+            Some(t) => t,
+            None => Err(format!("Unable to find table {}", table))?,
+        };
+        for current_table_delete in current_table_edits {
+            let (column_to_match, value_to_match) = match current_table_delete.edit_params {
+                EditType::Delete(column, val) => (column, val),
+                EditType::Insert(_) => panic!("Recieved Insert During Delete"),
+                _ => panic!("Recieved Update During Insert"),
+            };
+            match table_obj.delete(column_to_match, &value_to_match) {
+                Ok(deleted) => {
+                    commited_edits.append(&mut (deleted.iter().map(|entry|{
+                        CommitedEdit::new(table.clone(), entry.clone())
+                    }).collect()))
+                }
+                Err(e) => Err(format!("Error when deleting for entries {}", e))?,
+            };
+        }
+
+        let new_edits = self.execute_hooks(table, Event::PostDelete, None, Some(commited_edits.clone()), hooks);
+        let mut additional_edits = self.execute_edits(new_edits, Some(table), hooks)?;
+        commited_edits.append(&mut additional_edits);
+        return Ok(commited_edits);
+    }
+
+    // TODO Abstract similar functionality to delete above
+    pub fn insert_entry(
+        &mut self,
+        table: &String,
+        entry: Entry,
+        source_table: Option<&String>,
+        hooks: &mut HookMap
+    ) -> Result<Vec<CommitedEdit>, String> {
+        let edit = DBEdit::new(table.clone(), EditType::Insert(entry));
+
+        let new_edits = self.execute_hooks(table, Event::PreInsert(source_table.and_then(|e|{Some(e.to_owned())})), Some(vec![edit]), None, hooks);
+
+        let (current_table_edits, other_edits) = split_vec(new_edits, |db_edit|->bool {
+            db_edit.table.eq(table)
+        });
+        let mut commited_edits = self.execute_edits(other_edits, Some(table), hooks)?;
+
+
+        let mut entries_to_insert = vec![];
+        for current_table_edit in current_table_edits {
+            entries_to_insert.push( match current_table_edit.edit_params {
+                EditType::Insert(entry) => entry,
+                EditType::Delete(_,_) => panic!("Recieved Delete During Insert"),
+                EditType::Update(entry, column, value) => {
+                    //panic!("Recieved Update During Insert");
+                    // TODO Handle Unreported Deletes on edit
+                    self.delete_all(table, column, value, hooks)?;
+                    entry
+                }
+            });
+        }
+
+        match self.tables.get_mut(table) {
+            Some(t) => {
+                for entry_to_insert in entries_to_insert {
+                    match t.insert(entry_to_insert) {
+                        Ok(inserted_entry_results) => match inserted_entry_results {
+                            Some(inserted_entry) =>{
+                                commited_edits.push(CommitedEdit::new(table.clone(), inserted_entry))
+                            }
+                            None => {}
+                        },
+                        Err(e) => Err(format!("Error when inserting entry {}", e))?,
+                    }
+                }
+            }
+            None => Err(format!("Unable to find table {}", table))?,
+        };
+
+        let new_edits = self.execute_hooks(table, Event::PostInsert(None), None, Some(commited_edits.clone()), hooks);
+        let mut additional_edits = self.execute_edits(new_edits, Some(table), hooks)?;
+        commited_edits.append(&mut additional_edits);
+        return Ok(commited_edits);
     }
 
     pub fn find_one(
@@ -83,88 +132,6 @@ impl Database {
             Ok(r) => Ok(r),
             Err(e) => Err(format!("Error when searching for entry {}", e)),
         }
-    }
-
-    pub fn delete_all(
-        &mut self,
-        table: &String,
-        column: String,
-        key: EntryValue,
-    ) -> Result<Vec<Entry>, String> {
-        let table_obj = match self.tables.get_mut(table) {
-            Some(t) => t,
-            None => Err(format!("Unable to find table {}", table))?,
-        };
-
-        let mut to_delete: Vec<(String, EntryValue)> = vec![];
-        let mut deleted = match table_obj.delete(column, &key) {
-            Ok(deleted) => {
-                for output_table in &table_obj.output_tables {
-                    for entry in &deleted {
-                        to_delete.push((
-                            output_table.clone(),
-                            entry.get(ROW_ID_COLUMN_NAME).unwrap().clone(),
-                        ));
-                    }
-                }
-                deleted
-            }
-            Err(e) => Err(format!("Error when deleting for entries {}", e))?,
-        };
-        for entry in deleted.clone() {
-            self.inform_listeners(ListenEvent::Delete, Some(entry), table);
-        }
-        for (table, id) in to_delete {
-            let mut output_table_deletes = self.delete_all(&table, SOURCE_ENTRY_ID.to_string(), id)?;
-            for entry in output_table_deletes.clone() {
-                self.inform_listeners(ListenEvent::Delete, Some(entry), &table);
-            }
-            deleted.append(&mut output_table_deletes);
-        }
-        Ok(deleted)
-    }
-
-    // TODO clean this dumpster fire
-    pub fn insert_entry<'a>(
-        &mut self,
-        table: &String,
-        entry: Entry,
-        source_table: Option<&String>,
-    ) -> Result<(), String> {
-        let output_tables = self.get_all_next_inserts(table);
-        let transform = self.get_table_transform(table);
-        let entry = match transform {
-            Some(transform) => transform.execute(entry, table, self, source_table),
-            None => Some(entry),
-        };
-
-        self.inform_listeners(ListenEvent::Insert, entry.clone(), table);
-
-        match self.tables.get_mut(table) {
-            Some(t) => {
-                match entry {
-                    Some(unwrapped_entry) => match t.insert(unwrapped_entry) {
-                        Ok(inserted_entry_results) => match inserted_entry_results {
-                            Some(inserted_entry_unwrapped) => {
-                                for output_table in output_tables {
-                                    self.insert_entry(
-                                        &output_table,
-                                        inserted_entry_unwrapped.clone(),
-                                        Some(table),
-                                    )?;
-                                }
-                                ()
-                            }
-                            None => (),
-                        },
-                        Err(e) => Err(format!("Error when inserting entry {}", e))?,
-                    },
-                    None => (),
-                };
-            }
-            None => Err(format!("Unable to find table {}", table))?,
-        };
-        return Ok(());
     }
 
     pub fn less_than_search(
@@ -215,64 +182,63 @@ impl Database {
         }
     }
 
-    pub fn add_listener(&mut self, listen_request: ListenRequest, client_id: Uuid) {
-        let mut listener_list = match self.listeners.remove(&listen_request.table_name) {
-            Some(listener_list) => listener_list,
-            None => vec![],
-        };
-        listener_list.push((listen_request.event, client_id));
-        self.listeners
-            .insert(listen_request.table_name, listener_list);
-    }
-
-    pub fn add_response_channel(
-        &mut self,
-        client_id: Uuid,
-        response_channel: Sender<ToClientMessage>,
-    ) {
-        self.response_channels.insert(client_id, response_channel);
-    }
-
-    fn inform_listeners(&mut self, channel: ListenEvent, entry: Option<Entry>, table: &String) {
-        match self.listeners.get(table) {
-            Some(listener_list) => {
-                for (event, conn_id) in listener_list {
-                    if event == &channel {
-                        match entry.clone(){
-                            Some(entry_clone) => match self.response_channels.get(conn_id) {
-                                Some(channel) => {
-                                    let msg = ToClientMessage::Event(ListenResponse {
-                                        table_name: table.to_string(),
-                                        event: ListenEvent::Insert,
-                                        value: DBResponse::OneResult(Ok(Some(entry_clone))),
-                                    });
-                                    let _ = channel.blocking_send(msg);
-                                }
-                                None => {}
-                            },
-                            _ => {}
-                        }
-                    }
+    fn execute_edits(&mut self, edits: Vec<DBEdit>, source_table: Option<&String>, hooks: &mut HookMap) -> Result<Vec<CommitedEdit>, String>{
+        let mut changes = vec![];
+        for edit in edits {
+            let mut entries = match edit.edit_params {
+                EditType::Insert(entry) => {
+                    self.insert_entry(&edit.table, entry, source_table, hooks)?
+                },
+                EditType::Delete(column, value) => {
+                    self.delete_all(&edit.table, column, value, hooks)?
+                },
+                EditType::Update(entry,column, value) => {
+                    let mut edits = self.delete_all(&edit.table, column, value, hooks)?;
+                    edits.append(&mut self.insert_entry(&edit.table, entry, source_table, hooks)?);
+                    edits
                 }
-            }
-            None => {}
-        };
+
+            };
+            changes.append(&mut entries);
+        }
+        return Ok(changes);
     }
 
-    fn get_all_next_inserts(&self, table: &String) -> Vec<String> {
-        match self.tables.get(table) {
-            Some(t) => t.output_tables.clone(),
-            None => vec![],
-        }
-    }
+    //TODO: Filter non-supported hooks
+    fn execute_hooks(&mut self, table: &String, event: Event, requested_edits: Option<Vec<DBEdit>>, commited_edits: Option<Vec<CommitedEdit>>, hooks: &mut HookMap) -> Vec<DBEdit>{
+        let mut current_table_edits = requested_edits;
+        let mut downstream_edits = vec![];
+        for hook in hooks.get_mut(table).unwrap_or(&mut Vec::new()) {
+            let new_edits = hook.execute(event.clone(), current_table_edits.clone(), commited_edits.clone(), self);
+            match new_edits {
+                Some(edits) => {
+                    let( c_t_edits, mut d_s_edits) = split_vec(edits, |db_edit|->bool {
+                        db_edit.table.eq(table)
+                    });
+                    current_table_edits = Some(c_t_edits);
+                    downstream_edits.append(&mut d_s_edits);
 
-    fn get_table_transform(&self, table: &String) -> Option<Transform> {
-        match self.tables.get(table) {
-            Some(t) => match &t.table_type {
-                TableType::Source => None,
-                TableType::Derived(transform) => Some(transform.clone()),
-            },
-            None => None,
+                }
+                None => {}
+            };
         }
+        let mut unwrapped_final_edits = current_table_edits.unwrap_or(vec![]);
+        unwrapped_final_edits.append(&mut downstream_edits);
+        return unwrapped_final_edits;
     }
 }
+
+fn split_vec<T, F>(values: Vec<T>, predicate: F)->(Vec<T>, Vec<T>)
+    where F: Fn(&T)->bool {
+        let mut t_list = vec![];
+        let mut f_list =vec![];
+        for value in values{
+            if predicate(&value){
+                t_list.push(value);
+            }
+            else{
+                f_list.push(value);
+            }
+        }
+        return (t_list, f_list);
+} 

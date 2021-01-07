@@ -1,9 +1,8 @@
-use crate::config::config_reader::DbConfig;
-use crate::network_types::{
+use crate::{config::{config_reader::DbConfig}, database_manager::DatabaseManager, hooks::listener_hook::NewListenerObj};
+use crate::networking::types::{
     DBRequest, DBResponse, Query, RequestResponse, ToClientMessage,
 };
 use crate::read_config_file;
-use crate::Database;
 use std::collections::HashMap;
 use tokio::sync::mpsc::{Receiver, Sender};
 use uuid::Uuid;
@@ -26,11 +25,8 @@ pub fn start_db_thread(
             }
         }
     };
-    let db = Database::from_config(config, destination);
-    let mut db = match db {
-        Ok(db) => db,
-        Err(e) => panic!(e),
-    };
+    let mut dbm = DatabaseManager::from_config(config, destination).unwrap();
+
     let mut response_channels: HashMap<Uuid, Sender<ToClientMessage>> = HashMap::new();
 
     loop {
@@ -43,9 +39,7 @@ pub fn start_db_thread(
                 Ok(v) => v,
                 _ => break,
             };
-            let channel_clone = new_channel.clone();
             response_channels.insert(new_client_id, new_channel);
-            db.add_response_channel(new_client_id, channel_clone);
         }
         let response_channel = response_channels.get(&client_id).unwrap();
         match request {
@@ -54,7 +48,7 @@ pub fn start_db_thread(
                 let id = query_request.request_id;
                 match query {
                     Query::FindOne(request) => {
-                        let found_one = db.find_one(&request.table, request.column, request.key);
+                        let found_one = dbm.find_one(&request.table, request.column, request.key);
                         let response = ToClientMessage::RequestResponse(RequestResponse {
                             request_id: id,
                             response: DBResponse::OneResult(found_one),
@@ -63,7 +57,7 @@ pub fn start_db_thread(
                     }
                     Query::LessThan(request) => {
                         let found_many =
-                            db.less_than_search(&request.table, request.column, request.key);
+                            dbm.less_than_search(&request.table, request.column, request.key);
                         let response = ToClientMessage::RequestResponse(RequestResponse {
                             request_id: id,
                             response: DBResponse::ManyResults(found_many),
@@ -72,7 +66,7 @@ pub fn start_db_thread(
                     }
                     Query::GreaterThan(request) => {
                         let found_many =
-                            db.greater_than_search(&request.table, request.column, request.key);
+                            dbm.greater_than_search(&request.table, request.column, request.key);
                         let response = ToClientMessage::RequestResponse(RequestResponse {
                             request_id: id,
                             response: DBResponse::ManyResults(found_many),
@@ -80,23 +74,30 @@ pub fn start_db_thread(
                         let _ = response_channel.blocking_send(response);
                     }
                     Query::InsertData(request) => {
-                        let results = db.insert_entry(&request.table, request.entry, None);
+                        println!("Insert Request {:?}", request);
+                        let (temp_dbm, results) = dbm.insert_entry(&request.table, request.entry, None,);
+                        dbm = temp_dbm;
                         let response = ToClientMessage::RequestResponse(RequestResponse {
                             request_id: id,
-                            response: DBResponse::NoResult(results),
+                            response: DBResponse::ManyResults(results.map(|edits|{
+                                edits.iter().map(|edit|{edit.entry.clone()}).collect()
+                            })),
                         });
                         let _ = response_channel.blocking_send(response);
                     }
                     Query::DeleteData(request) => {
-                        let results = db.delete_all(&request.table, request.column, request.key);
+                        let (temp_dbm, results) = dbm.delete_all(&request.table, request.column, request.key);
+                        dbm = temp_dbm;
                         let response = ToClientMessage::RequestResponse(RequestResponse {
                             request_id: id,
-                            response: DBResponse::ManyResults(results),
+                            response: DBResponse::ManyResults(results.map(|edits|{
+                                edits.iter().map(|edit|{edit.entry.clone()}).collect()
+                            })),
                         });
                         let _ = response_channel.blocking_send(response);
                     },
                     Query::GetAll(request) => {
-                        let results = db.get_all(&request.table, request.column, request.key);
+                        let results = dbm.get_all(&request.table, request.column, request.key);
                         let response = ToClientMessage::RequestResponse(RequestResponse {
                             request_id: id,
                             response: DBResponse::ManyResults(results),
@@ -106,7 +107,16 @@ pub fn start_db_thread(
                 }
             }
             DBRequest::StartListen(listen_request) => {
-                db.add_listener(listen_request, client_id);
+                let new_listener = NewListenerObj {
+                    uuid: client_id,
+                    channel: response_channel.clone(),
+                    event: listen_request.event
+                };
+
+                match dbm.add_listener(new_listener, &listen_request.table_name) {
+                    Err(e) => panic!(e),
+                    _ => {}
+                };
             }
         };
     }

@@ -1,9 +1,6 @@
 use crate::utilities::max_size_hash_map::MaxSizeHashMap;
 use crate::io::Cursor;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use bzip2::read::BzDecoder;
-use bzip2::read::BzEncoder;
-use bzip2::Compression;
 use std::cmp;
 use std::collections::BinaryHeap;
 use std::collections::HashSet;

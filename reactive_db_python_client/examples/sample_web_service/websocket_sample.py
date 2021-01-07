@@ -43,7 +43,7 @@ def test_disconnect():
 def background():
     def callback(entry):
         print(entry["Event"]["value"]["OneResult"]["Ok"])
-        socketio.emit('my_response', {'data': "average grade for user "+ entry["Event"]["value"]["OneResult"]["Ok"]["aggregatedColumn"]["Str"] +" is now: "+str(entry["Event"]["value"]["OneResult"]["Ok"]["average"]["Integer"])}, broadcast = True, namespace="/test")
+        socketio.emit('my_response', {'data': "average grade for user "+ entry["Event"]["value"]["OneResult"]["Ok"]["aggregatedColumn"]["Str"] +" is now: "+str(entry["Event"]["value"]["OneResult"]["Ok"]["average"]["Decimal"])}, broadcast = True, namespace="/test")
     second_client = ClientSync("127.0.0.1", 1108)
     second_client.connect()
     second_client.start_listen_blocking("aggregationTest", "Insert", callback)

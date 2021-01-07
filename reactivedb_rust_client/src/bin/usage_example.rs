@@ -6,7 +6,7 @@ use reactivedb_rust_client::types::EntryValue;
 use reactivedb_rust_client::types::ListenEvent;
 #[tokio::main]
 async fn main() {
-    let mut client = Client::new("127.0.0.1:1108");
+    let mut client = Client::new("127.0.0.1:1109");
     client.open_connection().await.unwrap();
     client
         .subscribe_to_event(
