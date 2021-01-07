@@ -5,7 +5,9 @@ TLDR: A database that will allow developers to transform their data in database.
 This is very early in development and I would not use this for anything serious.
 
 ## Getting started
-To run this very early version go into reactive_db/ and run `cargo run 1108 test_cfg.yaml` then use either the python client or the rust client (Samples are under `examples/sample.py` and `src/bin/usage_example.rs` respectively) to interact with the database. 
+To run this very early version go into reactive_db/ and run `cargo run 1108 test_cfg.yaml` then use either the python client or the rust client (Samples are under `examples/sample.py` and `src/bin/usage_example.rs` respectively) to interact with the database.
+
+`test_cfg.yaml` contains a sample config
 
 ## Concepts
 This database centers on the idea that instead of computing changes to data as you need it, you should compute changes as you recieve it.
