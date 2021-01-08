@@ -2,12 +2,11 @@ use serde_json::Result;
 use std::io;
 use std::io::{Cursor, Error, ErrorKind};
 
-use crate::btree::node::{IndexValue, Node, NodeEntry};
-use crate::StorageManager;
+use crate::{btree::node::{IndexValue, Node, NodeEntry}, storage::storage_engine::StorageEngine};
 
 pub struct BTree {
     node_size: u32,
-    storage_manager: StorageManager,
+    storage_manager: Box<dyn StorageEngine>,
 }
 
 pub enum InsertResult {
@@ -17,7 +16,7 @@ pub enum InsertResult {
 
 impl BTree {
     /// Creates a new Btree index by taking ownership of a storage manager
-    pub fn new(node_size: u32, mut storage_manager: StorageManager) -> io::Result<BTree> {
+    pub fn new(node_size: u32, mut storage_manager: Box<dyn StorageEngine>) -> io::Result<BTree> {
         storage_manager.start_write_session()?;
         if storage_manager.is_empty(1)? {
             let root_node = Node {
@@ -545,7 +544,7 @@ impl BTree {
                         ErrorKind::Other,
                         format!(
                             "Error Decoding Node for: {:?}",
-                            self.storage_manager.file_name
+                            self.storage_manager.get_file_name()
                         ),
                     ))
                 }

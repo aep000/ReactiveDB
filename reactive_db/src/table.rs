@@ -1,10 +1,9 @@
-use crate::constants::{BTREE_NODE_SIZE, ROW_ID_COLUMN_NAME};
+use crate::{constants::{BTREE_NODE_SIZE, ROW_ID_COLUMN_NAME}, storage::{storage_engine::StorageEngine, storage_manager_v2::StorageManagerV2}};
 use crate::hooks::transforms::Transform;
 use crate::types::create_custom_io_error;
 use crate::types::DataType;
 use crate::types::{Entry, EntryValue};
 use crate::BTree;
-use crate::StorageManager;
 use serde_json::Result;
 use std::collections::HashMap;
 use std::io;
@@ -30,7 +29,7 @@ pub struct Table {
     pub output_tables: Vec<String>,
     pub input_tables: Vec<String>,
     indexes: Vec<BTree>,
-    entry_storage_manager: StorageManager,
+    entry_storage_manager: StorageManagerV2,
     path: String,
 }
 
@@ -53,17 +52,17 @@ impl Table {
         file_path: String,
     ) -> io::Result<Table> {
         let mut entry_storage_manager =
-            StorageManager::new(format!("{}/{}.db", file_path, table_name))?;
+            StorageManagerV2::new(format!("{}/{}.db", file_path, table_name))?;
         let mut indexes = vec![];
         let mut column_map = HashMap::new();
         for column in &columns {
             let mut column = column.clone();
             if column.data_type.is_indexible() {
                 let file_name = format!("{}/{}_{}.index", file_path, table_name, column.name);
-                let storage_manager = StorageManager::new(file_name)?;
+                let storage_manager = StorageManagerV2::new(file_name)?;
                 column.indexed = true;
                 column.index_loc = indexes.len();
-                indexes.push(BTree::new(BTREE_NODE_SIZE, storage_manager)?);
+                indexes.push(BTree::new(BTREE_NODE_SIZE, Box::new(storage_manager))?);
             }
             column_map.insert(column.name.clone(), column);
         }
@@ -84,10 +83,10 @@ impl Table {
                                             "{}/{}_{}.index",
                                             file_path, table_name, column.name
                                         );
-                                        let storage_manager = StorageManager::new(file_name)?;
+                                        let storage_manager = StorageManagerV2::new(file_name)?;
                                         column.indexed = true;
                                         column.index_loc = indexes.len();
-                                        indexes.push(BTree::new(BTREE_NODE_SIZE, storage_manager)?);
+                                        indexes.push(BTree::new(BTREE_NODE_SIZE, Box::new(storage_manager))?);
                                     }
                                     column_map.insert(column.name.clone(), column);
                                 }
@@ -319,11 +318,11 @@ impl Table {
     fn create_new_index(&mut self, mut column: Column, file_path: &String) -> io::Result<()> {
         if column.data_type.is_indexible() {
             let file_name = format!("{}/{}_{}.index", file_path, self.name, column.name);
-            let storage_manager = StorageManager::new(file_name)?;
+            let storage_manager = StorageManagerV2::new(file_name)?;
             column.indexed = true;
             column.index_loc = self.indexes.len();
             self.indexes
-                .push(BTree::new(BTREE_NODE_SIZE, storage_manager)?);
+                .push(BTree::new(BTREE_NODE_SIZE, Box::new(storage_manager))?);
         }
         self.columns.insert(column.name.clone(), column);
         return Ok(());

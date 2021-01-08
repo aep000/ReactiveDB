@@ -13,12 +13,13 @@ use std::io::BufWriter;
 use std::io::SeekFrom;
 use std::io::{Error, ErrorKind};
 
+use super::storage_engine::StorageEngine;
+
 const CACHE_SIZE: usize = 100;
 const DATA_BLOCK_SIZE: u32 = 100;
 const REFERENCE_BLOCK_SIZE: u32 = 4;
 const TOTAL_BLOCK_SIZE: u32 = DATA_BLOCK_SIZE + REFERENCE_BLOCK_SIZE;
 
-// Abstraction for paged storage of data
 pub struct StorageManager {
     pub file_name: String,
     pub open_blocks: BinaryHeap<isize>,
@@ -29,31 +30,14 @@ pub struct StorageManager {
     cache: MaxSizeHashMap<u32, Vec<u8>>
 }
 
-impl StorageManager {
-    pub fn new(file_name: String) -> io::Result<StorageManager> {
-        let mut manager = StorageManager {
-            file_name: file_name,
-            open_blocks: BinaryHeap::new(),
-            closed_blocks: HashSet::new(),
-            number_of_blocks: 0,
-            session_open: false,
-            open_file: None,
-            cache: MaxSizeHashMap::new(CACHE_SIZE)
-        };
-        manager.start_write_session()?;
-        manager.update_open_blocks()?;
-        manager.end_session();
-
-        return Ok(manager);
-    }
-
-    pub fn start_read_session(&mut self) -> io::Result<()> {
+impl StorageEngine for StorageManager {
+    fn start_read_session(&mut self) -> io::Result<()> {
         self.session_open = true;
         self.open_file = Some(OpenOptions::new().read(true).open(&self.file_name)?);
         return Ok(());
     }
 
-    pub fn start_write_session(&mut self) -> io::Result<()> {
+    fn start_write_session(&mut self) -> io::Result<()> {
         self.session_open = true;
         self.open_file = Some(
             OpenOptions::new()
@@ -65,12 +49,12 @@ impl StorageManager {
         return Ok(());
     }
 
-    pub fn end_session(&mut self) {
+    fn end_session(&mut self) {
         self.session_open = false;
         self.open_file = None;
     }
 
-    pub fn allocate_block(&mut self) -> u32 {
+    fn allocate_block(&mut self) -> u32 {
         match self.open_blocks.pop() {
             Some(n) => {
                 let block = (-1 * n) as u32;
@@ -86,7 +70,7 @@ impl StorageManager {
         }
     }
 
-    pub fn write_data(&mut self, data: Vec<u8>, starting_block: Option<u32>) -> io::Result<u32> {
+    fn write_data(&mut self, data: Vec<u8>, starting_block: Option<u32>) -> io::Result<u32> {
         //let mut compressed = vec![];
         //BzEncoder::new(data.as_slice(), Compression::Default)
         //    .read_to_end(&mut compressed)
@@ -125,7 +109,7 @@ impl StorageManager {
         return Ok(root_block);
     }
 
-    pub fn read_data(&mut self, starting_block: u32) -> io::Result<Vec<u8>> {
+    fn read_data(&mut self, starting_block: u32) -> io::Result<Vec<u8>> {
         let mut block_to_read: usize = starting_block as usize;
         let mut output = vec![];
         while block_to_read != 0 {
@@ -151,7 +135,7 @@ impl StorageManager {
         return Ok(trim(&output));
     }
 
-    pub fn delete_data(&mut self, starting_block: u32) -> io::Result<()> {
+    fn delete_data(&mut self, starting_block: u32) -> io::Result<()> {
         let mut block_to_read: usize = starting_block as usize;
         while block_to_read != 0 {
             let raw_block = self.read_block(block_to_read as u32)?;
@@ -166,12 +150,35 @@ impl StorageManager {
         return Ok(());
     }
 
-    pub fn is_empty(&mut self, block: u32) -> io::Result<bool> {
+    fn is_empty(&mut self, block: u32) -> io::Result<bool> {
         if block > self.number_of_blocks {
             return Ok(true);
         }
         let block = self.read_block(block)?;
         return Ok(block == vec![0; TOTAL_BLOCK_SIZE as usize]);
+    }
+
+    fn get_file_name(&mut self) -> String {
+        self.file_name.clone()
+    }
+}
+
+impl StorageManager {
+    pub fn new(file_name: String) -> io::Result<StorageManager> {
+        let mut manager = StorageManager {
+            file_name: file_name,
+            open_blocks: BinaryHeap::new(),
+            closed_blocks: HashSet::new(),
+            number_of_blocks: 0,
+            session_open: false,
+            open_file: None,
+            cache: MaxSizeHashMap::new(CACHE_SIZE)
+        };
+        manager.start_write_session()?;
+        manager.update_open_blocks()?;
+        manager.end_session();
+
+        return Ok(manager);
     }
 
     // Write to a specific block
