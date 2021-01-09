@@ -6,6 +6,7 @@ use crate::hooks::hook::Event;
 use crate::Entry;
 use crate::types::DBEdit;
 use crate::hooks::hook::Hook;
+use futures::FutureExt;
 use uuid::Uuid;
 use std::collections::HashMap;
 use tokio::sync::mpsc::{Sender, Receiver, channel};
@@ -31,8 +32,12 @@ impl ListenerHook {
 
     fn update_listeners(&mut self) {
         loop {
-            let new_listener = match self.new_listener_reciever.try_recv() {
-                Ok(v) => v,
+            // TODO investigate what it means for the inner and outer optionals are None
+            let new_listener = match self.new_listener_reciever.recv().now_or_never() {
+                Some(v) => match v {
+                    Some(v) => v,
+                    _ => break,
+                },
                 _ => break,
             };
             let event_listeners = match self.listeners.get_mut(&new_listener.event) {

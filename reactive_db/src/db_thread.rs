@@ -3,7 +3,8 @@ use crate::networking::types::{
     DBRequest, DBResponse, Query, RequestResponse, ToClientMessage,
 };
 use crate::read_config_file;
-use std::collections::HashMap;
+use std::{collections::HashMap, task::Poll};
+use futures::FutureExt;
 use tokio::sync::mpsc::{Receiver, Sender};
 use uuid::Uuid;
 use std::fs;
@@ -35,8 +36,12 @@ pub fn start_db_thread(
             _ => continue,
         };
         loop {
-            let (new_channel, new_client_id) = match response_channel_reciever.try_recv() {
-                Ok(v) => v,
+            let (new_channel, new_client_id) = match response_channel_reciever.recv().now_or_never() {
+                Some(v) => match v {
+                    Some(value) => value,
+                    //None => panic!("Poll Closed End Server")
+                    _ => break,
+                },
                 _ => break,
             };
             response_channels.insert(new_client_id, new_channel);

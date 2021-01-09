@@ -74,13 +74,13 @@ impl StorageEngine for StorageManagerV2 {
         }
     }
 
-    fn write_data(&mut self, data: Vec<u8>, starting_block: Option<u32>) -> io::Result<u32> {
+    fn write_data(&mut self, mut data: Vec<u8>, starting_block: Option<u32>) -> io::Result<u32> {
         if !self.debug {
             let mut compressed = vec![];
             BzEncoder::new(data.as_slice(), Compression::Default)
                 .read_to_end(&mut compressed)
                 .unwrap();
-            let data = compressed;
+            data = compressed;
         }
         self.start_write_session()?;
         let root_block: u32 = match starting_block {
@@ -196,11 +196,10 @@ impl StorageManagerV2 {
             session_open: false,
             open_file: None,
             cache: MaxSizeHashMap::new(CACHE_SIZE),
-            debug: true
+            debug: false
         };
         manager.start_write_session()?;
         manager.update_open_blocks()?;
-        //manager.write_data(vec![2], Some(0))?;
         manager.end_session();
 
         return Ok(manager);
