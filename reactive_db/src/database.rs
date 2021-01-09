@@ -89,7 +89,7 @@ impl Database {
                 EditType::Update(entry, column, value) => {
                     //panic!("Recieved Update During Insert");
                     // TODO Handle Unreported Deletes on edit
-                    self.delete_all(table, column, value, hooks)?;
+                    self.delete_all(table, column, value, hooks);
                     entry
                 }
             });

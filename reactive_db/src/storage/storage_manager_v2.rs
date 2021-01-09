@@ -1,4 +1,4 @@
-use crate::{tests::database_test, utilities::max_size_hash_map::MaxSizeHashMap};
+use crate::{utilities::max_size_hash_map::MaxSizeHashMap};
 use crate::io::Cursor;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::cmp;
@@ -30,7 +30,8 @@ pub struct StorageManagerV2 {
     pub number_of_blocks: u32,
     pub session_open: bool,
     pub open_file: Option<File>,
-    cache: MaxSizeHashMap<u32, Vec<u8>>
+    cache: MaxSizeHashMap<u32, Vec<u8>>,
+    debug: bool
 }
 
 impl StorageEngine for StorageManagerV2 {
@@ -74,11 +75,13 @@ impl StorageEngine for StorageManagerV2 {
     }
 
     fn write_data(&mut self, data: Vec<u8>, starting_block: Option<u32>) -> io::Result<u32> {
-        let mut compressed = vec![];
-        BzEncoder::new(data.as_slice(), Compression::Default)
-            .read_to_end(&mut compressed)
-            .unwrap();
-        let data = compressed;
+        if !self.debug {
+            let mut compressed = vec![];
+            BzEncoder::new(data.as_slice(), Compression::Default)
+                .read_to_end(&mut compressed)
+                .unwrap();
+            let data = compressed;
+        }
         self.start_write_session()?;
         let root_block: u32 = match starting_block {
             Some(n) => {
@@ -144,12 +147,15 @@ impl StorageEngine for StorageManagerV2 {
         if output == vec![0; output.len()] {
             return Ok(output);
         }
-        let mut decompressed = vec![];
-        //println!("{:?}", output);
-        BzDecoder::new(output.as_slice())
-            .read_to_end(&mut decompressed)
-            .unwrap();
-        return Ok(decompressed);
+        if !self.debug {
+            let mut decompressed = vec![];
+            //println!("{:?}", output);
+            BzDecoder::new(output.as_slice())
+                .read_to_end(&mut decompressed)
+                .unwrap();
+            return Ok(decompressed);
+        }
+        return Ok(output);
     }
 
     fn delete_data(&mut self, starting_block: u32) -> io::Result<()> {
@@ -189,13 +195,40 @@ impl StorageManagerV2 {
             number_of_blocks: 0,
             session_open: false,
             open_file: None,
-            cache: MaxSizeHashMap::new(CACHE_SIZE)
+            cache: MaxSizeHashMap::new(CACHE_SIZE),
+            debug: true
         };
         manager.start_write_session()?;
         manager.update_open_blocks()?;
+        //manager.write_data(vec![2], Some(0))?;
         manager.end_session();
 
         return Ok(manager);
+    }
+
+    pub fn is_v2_storage_manager(file_name: String) -> io::Result<bool> {
+        /*let mut manager = StorageManagerV2 {
+            file_name: file_name,
+            open_blocks: BinaryHeap::new(),
+            closed_blocks: HashSet::new(),
+            number_of_blocks: 0,
+            session_open: false,
+            open_file: None,
+            cache: MaxSizeHashMap::new(CACHE_SIZE),
+            debug: false
+        };
+        manager.start_read_session()?;
+        let data = manager.read_data(0);
+        match data {
+            Err(_) => return Ok(false),
+            Ok(d) => {
+                if d == vec![2] {
+                    return Ok(true);
+                }
+                return Ok(false);
+            }
+        };*/
+        Ok(true)
     }
 
     // Write to a specific block
