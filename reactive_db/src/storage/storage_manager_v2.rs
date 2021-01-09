@@ -200,6 +200,7 @@ impl StorageManagerV2 {
         };
         manager.start_write_session()?;
         manager.update_open_blocks()?;
+        //manager.write_data(vec![2], Some(0))?;
         manager.end_session();
 
         return Ok(manager);
@@ -213,20 +214,21 @@ impl StorageManagerV2 {
             number_of_blocks: 0,
             session_open: false,
             open_file: None,
-            cache: MaxSizeHashMap::new(CACHE_SIZE)
+            cache: MaxSizeHashMap::new(CACHE_SIZE),
+            debug: false
         };
         manager.start_read_session()?;
-        let data = manager.read_block(0);
+        let data = manager.read_data(0);
         match data {
-            Err(_) => Ok(false),
+            Err(_) => return Ok(false),
             Ok(d) => {
                 if d == vec![2] {
                     return Ok(true);
                 }
-                Ok(false)
+                return Ok(false);
             }
-        }*/
-        return Ok(true);
+        };*/
+        Ok(true)
     }
 
     // Write to a specific block

@@ -128,7 +128,6 @@ impl Table {
                 }
                 None => match self.table_type {
                     TableType::Derived(_) => {
-                        println!("Adding new column");
                         let new_column = Column::new(name.to_string(), get_data_type_of_entry(val));
                         let path = self.path.clone();
                         self.create_new_index(new_column, &path)?;
