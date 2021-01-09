@@ -1,4 +1,4 @@
-use crate::{tests::database_test, utilities::max_size_hash_map::MaxSizeHashMap};
+use crate::{utilities::max_size_hash_map::MaxSizeHashMap};
 use crate::io::Cursor;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::cmp;
@@ -193,9 +193,34 @@ impl StorageManagerV2 {
         };
         manager.start_write_session()?;
         manager.update_open_blocks()?;
+        let version_block = vec![2];
+        manager.write_block(0, version_block)?;
         manager.end_session();
 
         return Ok(manager);
+    }
+
+    pub fn is_v2_storage_manager(file_name: String) -> io::Result<bool> {
+        let mut manager = StorageManagerV2 {
+            file_name: file_name,
+            open_blocks: BinaryHeap::new(),
+            closed_blocks: HashSet::new(),
+            number_of_blocks: 0,
+            session_open: false,
+            open_file: None,
+            cache: MaxSizeHashMap::new(CACHE_SIZE)
+        };
+        manager.start_read_session()?;
+        let data = manager.read_block(0);
+        match data {
+            Err(_) => Ok(false),
+            Ok(d) => {
+                if d == vec![2] {
+                    return Ok(true);
+                }
+                Ok(false)
+            }
+        }
     }
 
     // Write to a specific block

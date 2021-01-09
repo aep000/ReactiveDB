@@ -28,7 +28,6 @@ impl ListenerHook {
             table
         });
     }
-    fn remove_listener(){}
 
     fn update_listeners(&mut self) {
         loop {
@@ -50,7 +49,7 @@ impl ListenerHook {
 }
 
 impl Hook for ListenerHook {
-    fn execute(&mut self, event: Event, proposed_edits:Option<Vec<DBEdit>>, commited_edits: Option<Vec<CommitedEdit>>, db: &mut Database) -> Option<Vec<DBEdit>>{
+    fn execute(&mut self, event: Event, proposed_edits:Option<Vec<DBEdit>>, commited_edits: Option<Vec<CommitedEdit>>, _db: &mut Database) -> Option<Vec<DBEdit>>{
         let default = vec![];
         self.update_listeners();
         let (levent, listener_list, entries) = match event {

@@ -164,7 +164,9 @@ impl StorageEngine for StorageManager {
 }
 
 impl StorageManager {
+    
     pub fn new(file_name: String) -> io::Result<StorageManager> {
+        print!("V1 detected");
         let mut manager = StorageManager {
             file_name: file_name,
             open_blocks: BinaryHeap::new(),

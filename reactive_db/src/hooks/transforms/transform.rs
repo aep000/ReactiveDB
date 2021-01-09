@@ -208,7 +208,7 @@ impl Transform {
     fn aggregate_transform(
         statements: &Vec<Statement>,
         mut transaction: Entry,
-        table_name: &String,
+        _table_name: &String,
         source_table: &String,
         aggregation_column: &String,        
         db: &mut Database,

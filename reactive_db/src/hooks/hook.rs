@@ -1,6 +1,6 @@
 use crate::{database::Database, types::CommitedEdit};
 use crate::types::DBEdit;
-use crate::Entry;
+
 
 #[derive(Clone, Ord, Eq, PartialOrd, PartialEq, Debug, Hash)]
 pub enum Event {
