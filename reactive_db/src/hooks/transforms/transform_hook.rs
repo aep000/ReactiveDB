@@ -1,4 +1,4 @@
-use crate::types::CommitedEdit;
+use crate::{actions::workspace::Workspace, types::CommitedEdit};
 use crate::types::{DBEdit, EditType};
 use crate::constants::SOURCE_ENTRY_ID;
 use crate::constants::ROW_ID_COLUMN_NAME;
@@ -26,7 +26,7 @@ impl TransformHook {
 }
 
 impl Hook for TransformHook {
-    fn execute(&mut self, event: Event, proposed_edits:Option<Vec<DBEdit>>, commited_edits: Option<Vec<CommitedEdit>>, db: &mut Database) -> Option<Vec<DBEdit>> {
+    fn execute(&mut self, event: Event, proposed_edits:Option<Vec<DBEdit>>, commited_edits: Option<Vec<CommitedEdit>>, db: &mut Database, workspace: Workspace) -> Option<Vec<DBEdit>> {
         let mut output = vec![];
         match event {
             // Handle Current Edit
@@ -39,7 +39,7 @@ impl Hook for TransformHook {
                         _ => panic!("Recieved Update During Insert"),
 
                     };
-                    let transformed_entry = self.transform.execute(entry, &self.table, db, source_table.as_ref());
+                    let transformed_entry = self.transform.execute(entry, &self.table, db, source_table.as_ref(), workspace.clone());
                     match transformed_entry {
                         Some(edit) => {
                             output.push(edit);

@@ -46,5 +46,20 @@ tables:
             - count ~ memo.count + 1.0
             - sum ~ memo.sum + grade
             - average ~ memo.sum/memo.count
+  - Derived:
+      name: actionTest
+      transform_definition:
+        ActionTransform:
+          name: TestAction
+          source_table: grades
 
 storage_destination: db/
+
+action_config: 
+  Inline:
+    workspace_dir: "./workspace/"
+    actions:
+      - 
+        name: TestAction
+        file: test_action
+        function: test

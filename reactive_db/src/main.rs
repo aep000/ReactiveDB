@@ -12,6 +12,7 @@ mod utilities;
 mod hooks;
 mod database_manager;
 mod storage;
+mod actions;
 
 use crate::btree::btree::BTree;
 use crate::btree::node::IndexValue;

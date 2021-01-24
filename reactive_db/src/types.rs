@@ -1,4 +1,5 @@
 use crate::IndexValue;
+use cpython::{PyObject, PythonObject, ToPyObject};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::io;
@@ -106,4 +107,35 @@ impl EntryValue {
 
 pub fn create_custom_io_error(text: &str) -> Error {
     return Error::new(ErrorKind::Other, text);
+}
+
+impl ToPyObject for EntryValue {
+    type ObjectType = PyObject;
+
+    fn to_py_object(&self, py: cpython::Python) -> Self::ObjectType {
+        match self {
+            EntryValue::Integer(value) => {
+                value.to_py_object(py).as_object().into_py_object(py)
+            }
+            EntryValue::Array(value) => {
+                value.to_py_object(py).as_object().into_py_object(py)
+            }
+            EntryValue::Map(value) => {
+                value.to_py_object(py).as_object().into_py_object(py)
+            }
+            EntryValue::Str(value) => {
+                value.to_py_object(py).as_object().into_py_object(py)
+            }
+            EntryValue::Bool(value) => {
+                value.to_py_object(py).as_object().into_py_object(py)
+            }
+            EntryValue::ID(value) => {
+                value.to_py_object(py).as_object().into_py_object(py)
+            }
+            EntryValue::Decimal(value) => {
+                let converted_value = value.to_string();
+                converted_value.to_py_object(py).as_object().into_py_object(py)
+            }
+        }
+    }
 }

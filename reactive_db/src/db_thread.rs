@@ -2,8 +2,8 @@ use crate::{config::{config_reader::DbConfig}, database_manager::DatabaseManager
 use crate::networking::types::{
     DBRequest, DBResponse, Query, RequestResponse, ToClientMessage,
 };
-use crate::read_config_file;
-use std::{collections::HashMap, task::Poll};
+
+use std::{collections::HashMap};
 use futures::FutureExt;
 use tokio::sync::mpsc::{Receiver, Sender};
 use uuid::Uuid;
@@ -13,9 +13,8 @@ use std::io;
 pub fn start_db_thread(
     mut request_reciever: Receiver<(DBRequest, Uuid)>,
     mut response_channel_reciever: Receiver<(Sender<ToClientMessage>, Uuid)>,
-    config_file: String,
+    config: DbConfig,
 ) -> std::io::Result<()> {
-    let config:DbConfig = read_config_file(config_file.to_string())?;
     let destination = config.storage_destination.clone();
     match fs::create_dir(destination.clone()) {
         Ok(()) => {},

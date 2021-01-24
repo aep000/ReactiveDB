@@ -1,4 +1,5 @@
 mod network_types;
+mod routes;
 
 pub mod client_connection;
 
@@ -19,3 +20,5 @@ pub mod types {
         InsertData,
     };
 }
+
+pub mod web_thread;

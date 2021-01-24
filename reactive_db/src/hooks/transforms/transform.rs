@@ -1,4 +1,4 @@
-use crate::{config::expression_parser::{ExpressionValue, Statement}, constants::AGGREGATION_KEY, types::{DBEdit, EditType}};
+use crate::{actions::{Action, workspace::Workspace}, config::expression_parser::{ExpressionValue, Statement}, constants::AGGREGATION_KEY, types::{DBEdit, EditType}};
 use crate::constants::ROW_ID_COLUMN_NAME;
 use crate::constants::SOURCE_ENTRY_ID;
 use crate::constants::UNION_MATCHING_KEY;
@@ -16,6 +16,7 @@ pub enum Transform {
     Function(Vec<Statement>),
     //TODO Impl Aggregate
     Aggregate((Vec<Statement>, String)),
+    Action(Action),
     None,
 }
 
@@ -26,6 +27,7 @@ impl Transform {
         table_name: &String,
         db: &mut Database,
         source_table: Option<&String>,
+        workspace: Workspace
     ) -> Option<DBEdit> {
         match self {
             Transform::Function(statments) => {
@@ -99,8 +101,28 @@ impl Transform {
                     return None;
                 }
             },
-            Transform::None => Some(DBEdit::new(table_name.clone(), EditType::Insert(transaction)))
-            //_ => None,
+            Transform::None => Some(DBEdit::new(table_name.clone(), EditType::Insert(transaction))),
+            Transform::Action(action) => {
+                let workspace_path = match workspace.get_absolute_workspace_path() {
+                    Ok(p) => p,
+                    Err(e) => {
+                        println!("WARNING!!! Error when getting absolute workspace path: {}", e);
+                        return None
+                    }
+                };
+                let result:Result<Entry, String> = action.serde_run_no_client(transaction.clone(), workspace_path);
+                match result {
+                    Ok(mut result) => {
+                        let source_uuid = transaction.get(&ROW_ID_COLUMN_NAME.to_string()).unwrap();
+                        result.insert(SOURCE_ENTRY_ID.to_string(), source_uuid.clone());
+                        Some(DBEdit::new(table_name.clone(), EditType::Insert(result)))
+                    }
+                    Err(e) => {
+                        println!("Warning following error during action transform: {}", e);
+                        None
+                    }
+                }
+            }
         }
     }
 

@@ -1,4 +1,6 @@
-use crate::types::DataType;
+use std::collections::HashMap;
+
+use crate::{actions::Action, types::DataType};
 use crate::hooks::transforms::Transform;
 use crate::table::{Column, Table, TableType};
 
@@ -7,6 +9,7 @@ use super::{config_reader::{TransformTableConfig, TransformType}, expression_par
 pub fn parse_transform_config(
     config: TransformTableConfig,
     storage_path: String,
+    actions: &HashMap<String, Action>
 ) -> Result<(Table, Transform), String> {
     let name = config.name;
     let mut columns = vec![];
@@ -41,6 +44,17 @@ pub fn parse_transform_config(
                 statements.push(Statement::new_assignment(raw_statement)?);
             }
             Transform::Aggregate((statements, config.aggregated_column))
+        }
+        TransformType::ActionTransform(action_config) => {
+            input_tables.push(action_config.source_table);
+            let action = actions.get(&action_config.name);
+            let action = match action {
+                Some(action) => {
+                    action.to_owned()
+                }
+                None => {panic!("Error: No action with name {} found", action_config.name)}
+            };
+            Transform::Action(action)
         }
     };
     let table = Table::new(name, columns, TableType::Derived(transform.clone()), storage_path);

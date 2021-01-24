@@ -20,3 +20,5 @@ futures = "0.3"
 tokio = { version = "1", features = ["full"] }
 rust_decimal = "1.8.1"
 hyper = { version = "0.14", features = ["full"] }
+async-trait = "0.1.42"
+cpython = {version = "0.5.2", features = ["serde-convert"]}

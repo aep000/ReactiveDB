@@ -10,7 +10,7 @@ async fn main() {
     client.open_connection().await.unwrap();
     client
         .subscribe_to_event(
-            "users".to_string(),
+            "actionTest".to_string(),
             ListenEvent::Insert,
             Box::new(|resp: DBResponse| -> Result<(), ()> {
                 println!("\nEVENT: {:?}\n", resp);
