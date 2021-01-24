@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::{config::config_reader::DbConfig, database_manager::DatabaseManager};
-    use crate::read_config_file;
+    use crate::{config::config_reader::{DbConfig, read_config_file}, database_manager::DatabaseManager};
     use crate::Entry;
     use crate::EntryValue;
     use rand::Rng;

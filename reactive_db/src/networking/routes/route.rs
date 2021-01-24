@@ -1,5 +1,5 @@
 use hyper::{Body, Request, Response};
-use reactivedb_rust_client::client::Client;
+
 use tokio::sync::mpsc::{Receiver, Sender};
 use uuid::Uuid;
 use async_trait::async_trait;

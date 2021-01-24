@@ -1,4 +1,4 @@
-use crate::{config::config_reader::{DbConfig, read_config_file}, networking::{client_connection, web_thread::web_thread}};
+use crate::{config::config_reader::{DbConfig, read_config_file}, networking::{client_connection}};
 use crate::db_thread;
 use std::thread;
 use tokio::net::TcpListener;
@@ -22,8 +22,8 @@ pub async fn start_server(port: String, config_file: String) -> std::io::Result<
             Err(e) => panic!("{:?}", e),
         };
     });
-    let db_request_clone = db_request_sender.clone();
-    let db_response_channel_sender_clone = db_response_channel_sender.clone();
+    let _db_request_clone = db_request_sender.clone();
+    let _db_response_channel_sender_clone = db_response_channel_sender.clone();
 
     tokio::spawn(async move {
         let listener = TcpListener::bind(format!("127.0.0.1:{}", port)).await.unwrap();

@@ -205,7 +205,7 @@ impl StorageManagerV2 {
         return Ok(manager);
     }
 
-    pub fn is_v2_storage_manager(file_name: String) -> io::Result<bool> {
+    pub fn is_v2_storage_manager(_file_name: String) -> io::Result<bool> {
         /*let mut manager = StorageManagerV2 {
             file_name: file_name,
             open_blocks: BinaryHeap::new(),
