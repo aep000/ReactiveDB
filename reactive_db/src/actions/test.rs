@@ -1,7 +1,6 @@
 
 #[cfg(test)]
 mod tests {
-    use cpython::{ObjectProtocol, PyDict, PyResult, Python};
     use reactivedb_rust_client::types::{Entry, EntryBuilder, EntryValue};
 
     use crate::actions::{Action, workspace::Workspace};
