@@ -28,15 +28,15 @@ impl Database {
         column: String,
         key: EntryValue,
         hooks: &mut HookMap,
-        workspace: Workspace
+        workspace: &Workspace
     ) -> Result<Vec<CommitedEdit>, String> {
 
         let edit = DBEdit::new(table.clone(), EditType::Delete(column, key));
-        let new_edits = self.execute_hooks(table, Event::PreDelete, Some(vec![edit]), None, hooks, workspace.clone());
+        let new_edits = self.execute_hooks(table, Event::PreDelete, Some(vec![edit]), None, hooks, workspace);
         let (current_table_edits, other_edits) = split_vec(new_edits, |db_edit|->bool {
             db_edit.table.eq(table)
         });
-        let mut commited_edits = self.execute_edits(other_edits, Some(table), hooks, workspace.clone())?;
+        let mut commited_edits = self.execute_edits(other_edits, Some(table), hooks, workspace)?;
 
         let table_obj = match self.tables.get_mut(table) {
             Some(t) => t,
@@ -58,7 +58,7 @@ impl Database {
             };
         }
 
-        let new_edits = self.execute_hooks(table, Event::PostDelete, None, Some(commited_edits.clone()), hooks, workspace.clone());
+        let new_edits = self.execute_hooks(table, Event::PostDelete, None, Some(commited_edits.clone()), hooks, workspace);
         let mut additional_edits = self.execute_edits(new_edits, Some(table), hooks, workspace)?;
         commited_edits.append(&mut additional_edits);
         return Ok(commited_edits);
@@ -71,16 +71,16 @@ impl Database {
         entry: Entry,
         source_table: Option<&String>,
         hooks: &mut HookMap,
-        workspace: Workspace
+        workspace: &Workspace
     ) -> Result<Vec<CommitedEdit>, String> {
         let edit = DBEdit::new(table.clone(), EditType::Insert(entry));
 
-        let new_edits = self.execute_hooks(table, Event::PreInsert(source_table.and_then(|e|{Some(e.to_owned())})), Some(vec![edit]), None, hooks, workspace.clone());
+        let new_edits = self.execute_hooks(table, Event::PreInsert(source_table.and_then(|e|{Some(e.to_owned())})), Some(vec![edit]), None, hooks, workspace);
 
         let (current_table_edits, other_edits) = split_vec(new_edits, |db_edit|->bool {
             db_edit.table.eq(table)
         });
-        let mut commited_edits = self.execute_edits(other_edits, Some(table), hooks, workspace.clone())?;
+        let mut commited_edits = self.execute_edits(other_edits, Some(table), hooks, workspace)?;
 
 
         let mut entries_to_insert = vec![];
@@ -91,7 +91,7 @@ impl Database {
                 EditType::Update(entry, column, value) => {
                     //panic!("Recieved Update During Insert");
                     // TODO Handle Unreported Deletes on edit
-                    self.delete_all(table, column, value, hooks, workspace.clone());
+                    self.delete_all(table, column, value, hooks, workspace);
                     entry
                 }
             });
@@ -114,7 +114,7 @@ impl Database {
             None => Err(format!("Unable to find table {}", table))?,
         };
 
-        let new_edits = self.execute_hooks(table, Event::PostInsert(None), None, Some(commited_edits.clone()), hooks, workspace.clone());
+        let new_edits = self.execute_hooks(table, Event::PostInsert(None), None, Some(commited_edits.clone()), hooks, workspace);
         let mut additional_edits = self.execute_edits(new_edits, Some(table), hooks, workspace)?;
         commited_edits.append(&mut additional_edits);
         return Ok(commited_edits);
@@ -184,19 +184,19 @@ impl Database {
         }
     }
 
-    fn execute_edits(&mut self, edits: Vec<DBEdit>, source_table: Option<&String>, hooks: &mut HookMap, workspace: Workspace) -> Result<Vec<CommitedEdit>, String>{
+    fn execute_edits(&mut self, edits: Vec<DBEdit>, source_table: Option<&String>, hooks: &mut HookMap, workspace: &Workspace) -> Result<Vec<CommitedEdit>, String>{
         let mut changes = vec![];
         for edit in edits {
             let mut entries = match edit.edit_params {
                 EditType::Insert(entry) => {
-                    self.insert_entry(&edit.table, entry, source_table, hooks, workspace.clone())?
+                    self.insert_entry(&edit.table, entry, source_table, hooks, workspace)?
                 },
                 EditType::Delete(column, value) => {
-                    self.delete_all(&edit.table, column, value, hooks, workspace.clone())?
+                    self.delete_all(&edit.table, column, value, hooks, workspace)?
                 },
                 EditType::Update(entry,column, value) => {
-                    let mut edits = self.delete_all(&edit.table, column, value, hooks, workspace.clone())?;
-                    edits.append(&mut self.insert_entry(&edit.table, entry, source_table, hooks, workspace.clone())?);
+                    let mut edits = self.delete_all(&edit.table, column, value, hooks, workspace)?;
+                    edits.append(&mut self.insert_entry(&edit.table, entry, source_table, hooks, workspace)?);
                     edits
                 }
 
@@ -207,7 +207,7 @@ impl Database {
     }
 
     //TODO: Filter non-supported hooks
-    fn execute_hooks(&mut self, table: &String, event: Event, requested_edits: Option<Vec<DBEdit>>, commited_edits: Option<Vec<CommitedEdit>>, hooks: &mut HookMap, workspace: Workspace) -> Vec<DBEdit>{
+    fn execute_hooks(&mut self, table: &String, event: Event, requested_edits: Option<Vec<DBEdit>>, commited_edits: Option<Vec<CommitedEdit>>, hooks: &mut HookMap, workspace: &Workspace) -> Vec<DBEdit>{
         let mut current_table_edits = requested_edits;
         let mut downstream_edits = vec![];
         for hook in hooks.get_mut(table).unwrap_or(&mut Vec::new()) {

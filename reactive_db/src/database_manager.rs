@@ -114,7 +114,7 @@ impl DatabaseManager {
         let mut db = self.db;
         let add_listener_senders = self.add_listener_senders;
         let workspace = self.workspace;
-        let result = db.delete_all(table, column, key, &mut hooks, workspace.clone());
+        let result = db.delete_all(table, column, key, &mut hooks, &workspace);
         (DatabaseManager {db, hooks, add_listener_senders, workspace}, result)
     }
 
@@ -128,7 +128,7 @@ impl DatabaseManager {
         let mut db = self.db;
         let add_listener_senders = self.add_listener_senders;
         let workspace = self.workspace;
-        let result = db.insert_entry(table, entry, source_table, &mut hooks, workspace.clone());
+        let result = db.insert_entry(table, entry, source_table, &mut hooks, &workspace);
         (DatabaseManager {db, hooks, add_listener_senders, workspace}, result)
     }
 
