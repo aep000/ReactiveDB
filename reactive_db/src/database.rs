@@ -24,14 +24,14 @@ impl Database {
 
     pub fn delete_all(
         &mut self,
-        table: &String,
+        table: &str,
         column: String,
         key: EntryValue,
         hooks: &mut HookMap,
         workspace: &Workspace
     ) -> Result<Vec<CommitedEdit>, String> {
 
-        let edit = DBEdit::new(table.clone(), EditType::Delete(column, key));
+        let edit = DBEdit::new(table.to_owned(), EditType::Delete(column, key));
         let new_edits = self.execute_hooks(table, Event::PreDelete, Some(vec![edit]), None, hooks, workspace);
         let (current_table_edits, other_edits) = split_vec(new_edits, |db_edit|->bool {
             db_edit.table.eq(table)
@@ -51,7 +51,7 @@ impl Database {
             match table_obj.delete(column_to_match, &value_to_match) {
                 Ok(deleted) => {
                     commited_edits.append(&mut (deleted.iter().map(|entry|{
-                        CommitedEdit::new(table.clone(), entry.clone())
+                        CommitedEdit::new(table.to_owned(), entry.clone())
                     }).collect()))
                 }
                 Err(e) => Err(format!("Error when deleting for entries {}", e))?,
@@ -67,13 +67,13 @@ impl Database {
     // TODO Abstract similar functionality to delete above
     pub fn insert_entry(
         &mut self,
-        table: &String,
+        table: &str,
         entry: Entry,
-        source_table: Option<&String>,
+        source_table: Option<&str>,
         hooks: &mut HookMap,
         workspace: &Workspace
     ) -> Result<Vec<CommitedEdit>, String> {
-        let edit = DBEdit::new(table.clone(), EditType::Insert(entry));
+        let edit = DBEdit::new(table.to_owned(), EditType::Insert(entry));
 
         let new_edits = self.execute_hooks(table, Event::PreInsert(source_table.and_then(|e|{Some(e.to_owned())})), Some(vec![edit]), None, hooks, workspace);
 
@@ -103,7 +103,7 @@ impl Database {
                     match t.insert(entry_to_insert) {
                         Ok(inserted_entry_results) => match inserted_entry_results {
                             Some(inserted_entry) =>{
-                                commited_edits.push(CommitedEdit::new(table.clone(), inserted_entry))
+                                commited_edits.push(CommitedEdit::new(table.to_owned(), inserted_entry))
                             }
                             None => {}
                         },
@@ -122,7 +122,7 @@ impl Database {
 
     pub fn find_one(
         &mut self,
-        table: &String,
+        table: &str,
         column: String,
         key: EntryValue
     ) -> Result<Option<Entry>, String> {
@@ -170,7 +170,7 @@ impl Database {
 
     pub fn greater_than_search(
         &mut self,
-        table: &String,
+        table: &str,
         column: String,
         key: EntryValue,
     ) -> Result<Vec<Entry>, String> {
@@ -184,7 +184,7 @@ impl Database {
         }
     }
 
-    fn execute_edits(&mut self, edits: Vec<DBEdit>, source_table: Option<&String>, hooks: &mut HookMap, workspace: &Workspace) -> Result<Vec<CommitedEdit>, String>{
+    fn execute_edits(&mut self, edits: Vec<DBEdit>, source_table: Option<&str>, hooks: &mut HookMap, workspace: &Workspace) -> Result<Vec<CommitedEdit>, String>{
         let mut changes = vec![];
         for edit in edits {
             let mut entries = match edit.edit_params {
@@ -207,7 +207,7 @@ impl Database {
     }
 
     //TODO: Filter non-supported hooks
-    fn execute_hooks(&mut self, table: &String, event: Event, requested_edits: Option<Vec<DBEdit>>, commited_edits: Option<Vec<CommitedEdit>>, hooks: &mut HookMap, workspace: &Workspace) -> Vec<DBEdit>{
+    fn execute_hooks(&mut self, table: &str, event: Event, requested_edits: Option<Vec<DBEdit>>, commited_edits: Option<Vec<CommitedEdit>>, hooks: &mut HookMap, workspace: &Workspace) -> Vec<DBEdit>{
         let mut current_table_edits = requested_edits;
         let mut downstream_edits = vec![];
         for hook in hooks.get_mut(table).unwrap_or(&mut Vec::new()) {

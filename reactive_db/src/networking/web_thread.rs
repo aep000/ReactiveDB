@@ -12,12 +12,12 @@ use super::{network_types::{DBRequest, ToClientMessage}, routes::{MakeRouterServ
 pub async fn web_thread(
     routes: Vec<Box<dyn Route>>,
     db_request_channel: Sender<(DBRequest, Uuid)>,
-    db_result_channel_Sender: Sender<(Sender<ToClientMessage>, Uuid)> 
+    db_result_channel_sender: Sender<(Sender<ToClientMessage>, Uuid)> 
 ) {
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
 
-    let server = Server::bind(&addr).serve(MakeRouterService {routes, db_request_channel, db_result_channel_Sender});
+    let server = Server::bind(&addr).serve(MakeRouterService {routes, db_request_channel, db_result_channel_sender});
 
     // Run this server for... forever!
     if let Err(e) = server.await {

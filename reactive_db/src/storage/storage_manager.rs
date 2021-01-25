@@ -57,7 +57,7 @@ impl StorageEngine for StorageManager {
     fn allocate_block(&mut self) -> u32 {
         match self.open_blocks.pop() {
             Some(n) => {
-                let block = (-1 * n) as u32;
+                let block = (-n) as u32;
                 if self.closed_blocks.contains(&block) {
                     return self.allocate_block();
                 }
@@ -115,7 +115,7 @@ impl StorageEngine for StorageManager {
         while block_to_read != 0 {
             let raw_block = self.read_block(block_to_read as u32)?;
             if raw_block.len() <= DATA_BLOCK_SIZE as usize {
-                Err(Error::new(ErrorKind::Other, "Error datablock too small"))?;
+                return Err(Error::new(ErrorKind::Other, "Error datablock too small"));
             }
             let data_block = &raw_block[..DATA_BLOCK_SIZE as usize].to_vec();
             let next_block_raw = raw_block[(DATA_BLOCK_SIZE) as usize..].to_vec();
@@ -142,7 +142,7 @@ impl StorageEngine for StorageManager {
             let next_block_raw = raw_block[(DATA_BLOCK_SIZE) as usize..].to_vec();
             self.delete_block(block_to_read as u32)?;
             if block_to_read != 1 && block_to_read != 0 {
-                self.open_blocks.push(-1 * block_to_read as isize);
+                self.open_blocks.push(-(block_to_read as isize));
                 self.closed_blocks.remove(&(block_to_read as u32));
             }
             block_to_read = Cursor::new(next_block_raw).read_u32::<BigEndian>().unwrap() as usize;
@@ -194,7 +194,7 @@ impl StorageManager {
         let to_write: Vec<u8> = vec![0; TOTAL_BLOCK_SIZE as usize - data.len()];
         data.extend(to_write);
         self.cache.insert(block_number, data.clone());
-        writer.write(&data)?;
+        writer.write_all(&data)?;
         writer.flush()?;
         return Ok(());
     }
@@ -247,7 +247,7 @@ impl StorageManager {
             }
         }
         for block in open_blocks {
-            self.open_blocks.push(-1 * block as isize);
+            self.open_blocks.push(-(block as isize));
         }
         self.number_of_blocks = num_blocks as u32;
         return Ok(());
@@ -255,7 +255,7 @@ impl StorageManager {
 }
 
 // trims tail off data
-fn trim(vector: &Vec<u8>) -> Vec<u8> {
+fn trim(vector: &[u8]) -> Vec<u8> {
     let mut started_tail = false;
     let mut output: Vec<u8> = vec![];
     let mut c = 0;

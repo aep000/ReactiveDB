@@ -61,7 +61,7 @@ impl StorageEngine for StorageManagerV2 {
     fn allocate_block(&mut self) -> u32 {
         match self.open_blocks.pop() {
             Some(n) => {
-                let block = (-1 * n) as u32;
+                let block = (-n) as u32;
                 if self.closed_blocks.contains(&block) {
                     return self.allocate_block();
                 }
@@ -165,7 +165,7 @@ impl StorageEngine for StorageManagerV2 {
             let next_block_raw = raw_block[(DATA_BLOCK_SIZE) as usize..].to_vec();
             self.delete_block(block_to_read as u32)?;
             if block_to_read != 1 && block_to_read != 0 {
-                self.open_blocks.push(-1 * block_to_read as isize);
+                self.open_blocks.push(-(block_to_read as isize));
                 self.closed_blocks.remove(&(block_to_read as u32));
             }
             block_to_read = Cursor::new(next_block_raw).read_u32::<BigEndian>().unwrap() as usize;
@@ -241,7 +241,7 @@ impl StorageManagerV2 {
         let to_write: Vec<u8> = vec![0; TOTAL_BLOCK_SIZE as usize - data.len()];
         data.extend(to_write);
         self.cache.insert(block_number, data.clone());
-        writer.write(&data)?;
+        writer.write_all(&data)?;
         writer.flush()?;
         return Ok(());
     }
@@ -294,7 +294,7 @@ impl StorageManagerV2 {
             }
         }
         for block in open_blocks {
-            self.open_blocks.push(-1 * block as isize);
+            self.open_blocks.push(-(block as isize));
         }
         self.number_of_blocks = num_blocks as u32;
         return Ok(());

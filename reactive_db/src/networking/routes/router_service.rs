@@ -45,7 +45,7 @@ impl Service<Request<Body>> for RouterService {
 pub struct MakeRouterService {
     pub routes: Vec<Box<dyn Route>>,
     pub db_request_channel: Sender<(DBRequest, Uuid)>,
-    pub db_result_channel_Sender: Sender<(Sender<ToClientMessage>, Uuid)> 
+    pub db_result_channel_sender: Sender<(Sender<ToClientMessage>, Uuid)> 
 }
 
 impl<T> Service<T> for MakeRouterService {
@@ -62,7 +62,7 @@ impl<T> Service<T> for MakeRouterService {
         let id = Uuid::new_v4(); 
         let db_request_channel = self.db_request_channel.clone();
         let (db_result_sender, db_result_reciever) = channel(30);
-        self.db_result_channel_Sender.send((db_result_sender, id));
+        self.db_result_channel_sender.send((db_result_sender, id));
 
         let fut = async move { Ok(RouterService { routes, id, db_request_channel, db_result_channel: db_result_reciever }) };
         Box::pin(fut)

@@ -106,7 +106,7 @@ impl DatabaseManager {
 
     pub fn delete_all(
         self,
-        table: &String,
+        table: &str,
         column: String,
         key: EntryValue,
     ) -> (DatabaseManager, Result<Vec<CommitedEdit>, String>){
@@ -122,7 +122,7 @@ impl DatabaseManager {
         self,
         table: &String,
         entry: Entry,
-        source_table: Option<&String>,
+        source_table: Option<&str>,
     ) -> (DatabaseManager, Result<Vec<CommitedEdit>, String>) {
         let mut hooks = self.hooks;
         let mut db = self.db;
@@ -152,7 +152,7 @@ impl DatabaseManager {
 
     pub fn greater_than_search(
         &mut self,
-        table: &String,
+        table: &str,
         column: String,
         key: EntryValue,
     ) -> Result<Vec<Entry>, String> {
@@ -161,7 +161,7 @@ impl DatabaseManager {
 
     pub fn find_one(
         &mut self,
-        table: &String,
+        table: &str,
         column: String,
         key: EntryValue,
     ) -> Result<Option<Entry>, String> {
@@ -170,17 +170,14 @@ impl DatabaseManager {
 
     #[allow(dead_code)]
     pub fn add_hook(&mut self, hook: Box<dyn Hook>, table: String) {
-        match self.hooks.get_mut(&table) {
-            Some(hooks) => {
-                hooks.push(hook);
-                return
-            }
-            None => {}
-        };
+        if let Some(hooks) = self.hooks.get_mut(&table) {
+            hooks.push(hook);
+            return
+        }
         self.hooks.insert(table, vec![hook]);
     }
 
-    pub fn add_listener(&mut self, new_listener_obj:NewListenerObj, table: &String)-> Result<(), String>{
+    pub fn add_listener(&mut self, new_listener_obj:NewListenerObj, table: &str)-> Result<(), String>{
         match self.add_listener_senders.get_mut(table) {
             Some(sender) => match sender.blocking_send(new_listener_obj) {
                 Ok(_) => Ok(()),
