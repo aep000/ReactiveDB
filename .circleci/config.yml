@@ -1,6 +1,7 @@
 version: 2
 jobs:
   build-and-test:
+    working_directory: $CIRCLE_WORKING_DIRECTORY/reactive_db/
     docker:
       - image: circleci/rust
     environment:
@@ -11,11 +12,6 @@ jobs:
       - run:
           name: Version information
           command: rustc --version; cargo --version; rustup --version
-      # If you have committed your Cargo.lock file to version control
-      # delete this step.
-      - run:
-          name: Calculate dependencies
-          command: cargo generate-lockfile
       - restore_cache:
           keys:
             - v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
@@ -34,6 +30,7 @@ jobs:
           command: cargo test
 
   security:
+    working_directory: $CIRCLE_WORKING_DIRECTORY/reactive_db/
     docker:
       - image: circleci/rust
     steps:
@@ -60,6 +57,7 @@ jobs:
           command: cargo audit
 
   format:
+    working_directory: $CIRCLE_WORKING_DIRECTORY/reactive_db/
     docker:
       - image: circleci/rust
     steps:
@@ -75,6 +73,7 @@ jobs:
           command: cargo fmt --all -- --check
 
   lint:
+    working_directory: $CIRCLE_WORKING_DIRECTORY/reactive_db/
     docker:
       - image: circleci/rust
     steps:
@@ -90,6 +89,7 @@ jobs:
           command: cargo clippy -- -D warnings
 
   coverage:
+    working_directory: $CIRCLE_WORKING_DIRECTORY/reactive_db/
     machine: true
     steps:
       - checkout
