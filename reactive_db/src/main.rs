@@ -1,8 +1,6 @@
 mod btree;
 mod config;
 mod constants;
-mod database;
-mod db_thread;
 mod server;
 mod table;
 mod tests;
@@ -10,17 +8,15 @@ mod types;
 mod networking;
 mod utilities;
 mod hooks;
-mod database_manager;
 mod storage;
 mod actions;
+mod database;
 
 use crate::btree::btree::BTree;
 use crate::btree::node::IndexValue;
 
 use crate::config::expression_parser::Expression;
-use crate::database::Database;
 
-use crate::table::{Table};
 use crate::types::{Entry, EntryValue};
 use std::env;
 use std::io;

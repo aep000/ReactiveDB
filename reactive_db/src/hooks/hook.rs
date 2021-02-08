@@ -1,4 +1,4 @@
-use crate::{actions::workspace::Workspace, database::Database, types::CommitedEdit};
+use crate::{actions::workspace::Workspace, database::{db_trait::DB}, types::CommitedEdit};
 use crate::types::DBEdit;
 
 
@@ -10,7 +10,7 @@ pub enum Event {
     PostDelete
 }
 pub trait Hook {
-    fn execute(&mut self, event: Event, proposed_edits:Option<Vec<DBEdit>>, commited_edits: Option<Vec<CommitedEdit>>, db: &mut Database, workspace: Workspace) -> Option<Vec<DBEdit>>;
+    fn execute(&mut self, event: Event, proposed_edits:Option<Vec<DBEdit>>, commited_edits: Option<Vec<CommitedEdit>>, db: &mut dyn DB, workspace: Workspace) -> Option<Vec<DBEdit>>;
     fn get_events(&self) -> Vec<Event>;
     fn get_table(&self) -> String;
 }

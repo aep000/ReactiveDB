@@ -1,6 +1,6 @@
 
 
-use crate::{actions::workspace::Workspace, database::Database, types::CommitedEdit};
+use crate::{actions::workspace::Workspace, database::db_trait::DB, types::CommitedEdit};
 use crate::networking::types::{ListenResponse, DBResponse, ToClientMessage, ListenEvent};
 use crate::hooks::hook::Event;
 use crate::Entry;
@@ -54,7 +54,7 @@ impl ListenerHook {
 }
 
 impl Hook for ListenerHook {
-    fn execute(&mut self, event: Event, proposed_edits:Option<Vec<DBEdit>>, commited_edits: Option<Vec<CommitedEdit>>, _db: &mut Database, _workspace: Workspace) -> Option<Vec<DBEdit>>{
+    fn execute(&mut self, event: Event, proposed_edits:Option<Vec<DBEdit>>, commited_edits: Option<Vec<CommitedEdit>>, _db: &mut dyn DB, _workspace: Workspace) -> Option<Vec<DBEdit>>{
         let default = vec![];
         self.update_listeners();
         let (levent, listener_list, entries) = match event {

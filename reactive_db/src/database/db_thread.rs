@@ -1,4 +1,4 @@
-use crate::{config::{config_reader::DbConfig}, database_manager::DatabaseManager, hooks::listener_hook::NewListenerObj};
+use crate::{config::{config_reader::DbConfig}, hooks::listener_hook::NewListenerObj};
 use crate::networking::types::{
     DBRequest, DBResponse, Query, RequestResponse, ToClientMessage,
 };
@@ -9,6 +9,8 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use uuid::Uuid;
 use std::fs;
 use std::io;
+
+use super::database_manager::DatabaseManager;
 
 pub fn start_db_thread(
     mut request_reciever: Receiver<(DBRequest, Uuid)>,

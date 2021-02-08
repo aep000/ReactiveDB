@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use crate::{actions::Action, types::DataType};
+use crate::{actions::Action, table::{table_trait::Table, types::{Column, TableType}}, types::DataType};
 use crate::hooks::transforms::Transform;
-use crate::table::{Column, Table, TableType};
+use crate::table::storage_manager_table::StorageManagerTable;
 
 use super::{config_reader::{TransformTableConfig, TransformType}, expression_parser::Statement};
 
@@ -10,7 +10,7 @@ pub fn parse_transform_config(
     config: TransformTableConfig,
     storage_path: String,
     actions: &HashMap<String, Action>
-) -> Result<(Table, Transform), String> {
+) -> Result<(StorageManagerTable, Transform), String> {
     let name = config.name;
     let mut columns = vec![];
     columns.push(Column::new("_entryId".to_string(), DataType::ID));
@@ -57,10 +57,10 @@ pub fn parse_transform_config(
             Transform::Action(action)
         }
     };
-    let table = Table::new(name, columns, TableType::Derived(transform.clone()), storage_path);
+    let table = StorageManagerTable::new(name, columns, TableType::Derived(transform.clone()), storage_path);
     match table {
         Ok(mut t) => {
-            t.input_tables = input_tables;
+            t.get_input_tables().append(&mut input_tables);
             Ok((t, transform))
         }
         Err(e) => Err(format!("{:?}", e)),

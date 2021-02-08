@@ -1,8 +1,7 @@
-use crate::{actions::{Action, workspace::Workspace}, config::expression_parser::{ExpressionValue, Statement}, constants::AGGREGATION_KEY, types::{DBEdit, EditType}};
+use crate::{actions::{Action, workspace::Workspace}, config::expression_parser::{ExpressionValue, Statement}, constants::AGGREGATION_KEY, database::{db_trait::DB}, types::{DBEdit, EditType}};
 use crate::constants::ROW_ID_COLUMN_NAME;
 use crate::constants::SOURCE_ENTRY_ID;
 use crate::constants::UNION_MATCHING_KEY;
-use crate::database::Database;
 use crate::Entry;
 use crate::EntryValue;
 use crate::Expression;
@@ -25,7 +24,7 @@ impl Transform {
         &self,
         transaction: Entry,
         table_name: &String,
-        db: &mut Database,
+        db: &mut dyn DB,
         source_table: Option<&String>,
         workspace: Workspace
     ) -> Option<DBEdit> {
@@ -179,7 +178,7 @@ impl Transform {
         transaction: Entry,
         table_name: &String,
         source_table: &String,
-        db: &mut Database,
+        db: &mut dyn DB,
     ) -> Option<Entry> {
         let mut foreign_value = None;
         let mut foreign_key = None;
@@ -233,7 +232,7 @@ impl Transform {
         _table_name: &String,
         source_table: &String,
         aggregation_column: &String,        
-        db: &mut Database,
+        db: &mut dyn DB,
     ) -> std::result::Result<Entry, String> {
         let mut map: Entry = BTreeMap::new();
         let source_uuid = transaction.get(&ROW_ID_COLUMN_NAME.to_string()).unwrap();

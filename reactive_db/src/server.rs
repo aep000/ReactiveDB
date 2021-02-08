@@ -1,5 +1,5 @@
 use crate::{config::config_reader::{DbConfig, read_config_file}, networking::{client_connection}};
-use crate::db_thread;
+use crate::database::db_thread;
 use std::thread;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::channel;

@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use tokio::sync::mpsc::Sender;
 
-use crate::{actions::{Action, workspace::Workspace}, config::{config_parser::parse_transform_config, config_reader::{DbConfig, Importable, TableConfig}}};
-use crate::database::{Database};
+use crate::{actions::{Action, workspace::Workspace}, config::{config_parser::parse_transform_config, config_reader::{DbConfig, Importable, TableConfig}}, table::{multi_source_table::MultiSourceTable, table_trait::Table, types::{Column, TableType}}};
+use super::{db_trait::DB, database::Database};
 use crate::hooks::{hook::Hook, listener_hook::{ListenerHook, NewListenerObj}, transforms::TransformHook};
-use crate::table::{Column, Table, TableType};
+use crate::table::storage_manager_table::StorageManagerTable;
 use crate::types::{CommitedEdit, DataType, Entry, EntryValue};
 use crate::hooks::transforms::Transform;
 
@@ -19,7 +19,7 @@ pub struct DatabaseManager{
 
 impl DatabaseManager {
     pub fn from_config(config: DbConfig, storage_path: String) -> Result<DatabaseManager, String> {
-        let mut tables: HashMap<String, Table> = HashMap::new();
+        let mut tables: HashMap<String, MultiSourceTable> = HashMap::new();
         let mut hooks: HashMap<String, Vec<Box<dyn Hook>>> = HashMap::new();
         let mut add_listener_senders = HashMap::new();
         let mut actions: HashMap<String, Action> = HashMap::new();
@@ -50,7 +50,7 @@ impl DatabaseManager {
                         columns.push(Column::new(name, data_type))
                     }
                     columns.push(Column::new("_entryId".to_string(), DataType::ID));
-                    let new_table = match Table::new(
+                    let new_table = match StorageManagerTable::new(
                         name.clone(),
                         columns,
                         TableType::Source,
@@ -64,7 +64,7 @@ impl DatabaseManager {
                     add_listener_senders.insert(name.clone(), sender);
                     hook_list.push(Box::new(listener_hook));
                     hooks.insert(name.clone(), hook_list);
-                    tables.insert(name, new_table);
+                    tables.insert(name, MultiSourceTable::InHouse(new_table));
                 }
                 TableConfig::Derived(config) => {
                     let (table, transform) = parse_transform_config(config, storage_path.clone(), &actions)?;
@@ -75,14 +75,14 @@ impl DatabaseManager {
                     add_listener_senders.insert(table_name.clone(), sender);
                     hook_list.push(Box::new(listener_hook));
 
-                    tables.insert(table_name.clone(), table);
+                    tables.insert(table_name.clone(), MultiSourceTable::InHouse(table));
                     hooks.insert(table_name.clone(), hook_list);
                 }
             }
         }
         let mut input_refs = vec![];
-        for (name, table) in &tables {
-            for input_table_name in &table.input_tables {
+        for (name, table) in &mut tables {
+            for input_table_name in table.get_input_tables() {
                 input_refs.push((input_table_name.clone(), name.clone()));
             }
         }
@@ -91,7 +91,7 @@ impl DatabaseManager {
                 Some(t) => t,
                 None => Err("Specified input table does not exist".to_string())?,
             };
-            table_to_mod.output_tables.push(dest_table.clone());
+            table_to_mod.get_output_tables().push(dest_table.clone());
         }
 
         let db = Database::new(tables);

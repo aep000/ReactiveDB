@@ -1,9 +1,8 @@
-use crate::{actions::workspace::Workspace, types::CommitedEdit};
+use crate::{actions::workspace::Workspace, database::{db_trait::DB}, types::CommitedEdit};
 use crate::types::{DBEdit, EditType};
 use crate::constants::SOURCE_ENTRY_ID;
 use crate::constants::ROW_ID_COLUMN_NAME;
 use super::Transform;
-use crate::Database;
 use crate::hooks::hook::{Event, Hook};
 
 pub struct TransformHook {
@@ -18,15 +17,10 @@ impl TransformHook {
             table,
         }
     }
-
-    fn get_output_tables(&self, table: &String, db: &mut Database) -> Vec<String>{
-        db.tables.get(table).unwrap().output_tables.clone()
-    }
-
 }
 
 impl Hook for TransformHook {
-    fn execute(&mut self, event: Event, proposed_edits:Option<Vec<DBEdit>>, commited_edits: Option<Vec<CommitedEdit>>, db: &mut Database, workspace: Workspace) -> Option<Vec<DBEdit>> {
+    fn execute(&mut self, event: Event, proposed_edits:Option<Vec<DBEdit>>, commited_edits: Option<Vec<CommitedEdit>>, db: &mut dyn DB, workspace: Workspace) -> Option<Vec<DBEdit>> {
         let mut output = vec![];
         match event {
             // Handle Current Edit
@@ -50,7 +44,7 @@ impl Hook for TransformHook {
             },
             //Handle Down Stream Edits
             Event::PostInsert(_) => {
-                let downstream_tables = self.get_output_tables(&self.table, db);
+                let downstream_tables = db.get_output_tables(&self.table);
                 for commited_edit in commited_edits.unwrap() {
                     for d_s_table in downstream_tables.clone() {
                         if commited_edit.table == self.table {
@@ -60,7 +54,7 @@ impl Hook for TransformHook {
                 }
             },
             Event::PostDelete => {
-                let output_tables = self.get_output_tables(&self.table, db);
+                let output_tables = db.get_output_tables( &self.table);
                 for output_table in output_tables {
                     for edit in commited_edits.clone().unwrap() {
                         let id = edit.entry.get(ROW_ID_COLUMN_NAME).unwrap().clone();
